@@ -2,7 +2,9 @@ import {formatArtist,type MusicArtist,type ArtistDetails} from './music-artists'
 import {formatCatalogTrack} from './music-catalog';
 import type {CatalogTrack} from './music-catalog';
 import {validTrackId} from './vibe';
+import {createCollectionsService} from './spotify-collections-service';
 export function createArtistsService(get:(path:string)=>Promise<any>,fetcher=fetch,now=Date.now){
+ const collections=createCollectionsService(get,now);
  const cache=new Map<string,{data:any;until:number}>(),pending=new Map<string,Promise<any>>();
  const knownArtists=new Map<string,MusicArtist>();
  function remember(artist:MusicArtist){if(knownArtists.size>=200)knownArtists.delete(knownArtists.keys().next().value!);knownArtists.set(artist.id,artist);return artist;}
@@ -57,8 +59,8 @@ export function createArtistsService(get:(path:string)=>Promise<any>,fetcher=fet
    }
    return [];
   }
-  const [tracks,bio]=await Promise.all([searchTracks(),name?biography(name):Promise.resolve(null)]);
-  return {artist:shown,tracks,trackSource:tracks.length?'search':'unavailable',biography:bio?.text||null,biographyUrl:bio?.url||null};
+  const [tracks,bio,albums]=await Promise.all([searchTracks(),name?biography(name):Promise.resolve(null),collections.artistAlbums(id).then(items=>({items,unavailable:false})).catch(()=>({items:[],unavailable:true}))]);
+  return {artist:shown,tracks,trackSource:tracks.length?'search':'unavailable',biography:bio?.text||null,biographyUrl:bio?.url||null,albums:albums.items,albumsUnavailable:albums.unavailable};
  });}
  return {list,details};
 }

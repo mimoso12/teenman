@@ -6,7 +6,7 @@ export function formatCatalogTrack(raw:any,album:any):CatalogTrack|null{
   if(!raw||!validTrackId(raw.id)||typeof raw.name!=='string')return null;
   const cover=safeCover(album?.images?.[0]?.url||raw.album?.images?.[0]?.url);
   const date=album?.release_date||raw.album?.release_date||'';
-  return {id:raw.id,name:raw.name.slice(0,200),artist:(raw.artists||[]).map((a:any)=>a.name).filter((name:any)=>typeof name==='string').join(', ').slice(0,250),cover,albumCover:cover,albumName:String(album?.name||raw.album?.name||'Álbum não informado').slice(0,200),releaseYear:/^\d{4}/.test(date)?date.slice(0,4):'—',popularity:typeof raw.popularity==='number'&&Number.isFinite(raw.popularity)?Math.max(0,Math.min(100,raw.popularity)):null,label:typeof album?.label==='string'&&album.label.trim()?album.label.trim().slice(0,250):'Não informada pelo Spotify'};
+  return {id:raw.id,name:raw.name.slice(0,200),artist:(Array.isArray(raw.artists)?raw.artists:[]).filter(Boolean).map((a:any)=>a.name).filter((name:any)=>typeof name==='string').join(', ').slice(0,250),cover,albumCover:cover,albumName:String(album?.name||raw.album?.name||'Álbum não informado').slice(0,200),releaseYear:/^\d{4}/.test(date)?date.slice(0,4):'—',popularity:typeof raw.popularity==='number'&&Number.isFinite(raw.popularity)?Math.max(0,Math.min(100,raw.popularity)):null,label:typeof album?.label==='string'&&album.label.trim()?album.label.trim().slice(0,250):'Não informada pelo Spotify'};
 }
 export function musicPostContent(track:CatalogTrack,opinion:string){
  const heading=`🎵 ${track.name.slice(0,150)} — ${track.artist.slice(0,150)}\nProdutora / Gravadora: ${track.label.slice(0,150)}`;

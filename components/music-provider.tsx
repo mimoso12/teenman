@@ -10,7 +10,10 @@ import { useMusicVibe } from './use-music-vibe';
 import VibeWidget from './vibe-widget';
 import AiStageEffects from './AiStageEffects';
 import GlobalVibePalette from './global-vibe-palette';
+import {useMusicTaste} from './use-music-taste';
+import type {TasteEntry} from '../lib/music-taste';
 type MusicContextValue = {
+  taste:TasteEntry[];recordTaste:(kind:TasteEntry['kind'],term:string,genres?:string[])=>void;
   user:User|null; ready:boolean; ownerProfile:ProfileData|null; track:Track|null; playing:boolean;
   setPlaying:(value:boolean)=>void; selectTrack:(track:Track,pin?:boolean)=>void; offerTrack:(track:Track)=>void;
   playTrack:(track:Track)=>void;playRequest:number;
@@ -23,6 +26,7 @@ export function useMusic(){const context=useContext(MusicContext);if(!context)th
 export default function MusicProvider({children}:{children:ReactNode}){
   const pathname=usePathname();
   const [user,setUser]=useState<User|null>(null),[ready,setReady]=useState(false);
+  const taste=useMusicTaste(user?.id||null);
   const [ownerProfile,setOwnerProfile]=useState<ProfileData|null>(null),[enhanced,setEnhanced]=useState(false);
   const [track,setTrack]=useState<Track|null>(null),[playing,setPlaying]=useState(false);
   const active=useRef<Track|null>(null),identity=useRef<string|null|undefined>(undefined);
@@ -83,12 +87,12 @@ export default function MusicProvider({children}:{children:ReactNode}){
     active.current=next;setTrack(next);setAutoPin(Boolean(user&&pin));setOpenSignal(value=>value+1);
     if(user&&pin){lastSaved.current='';persist(next,null);}
   }
-  function playTrack(next:Track){selectTrack(next);setPlayRequest(value=>value+1);}
+  function playTrack(next:Track){taste.record('play',next.artist);selectTrack(next);setPlayRequest(value=>value+1);}
   function offerTrack(next:Track){if(!active.current){active.current=next;setTrack(next);}}
   function pinTrack(){if(!track)return;setAutoPin(true);if(user&&analysis.vibe)lastSaved.current=JSON.stringify([user.id,track.id,analysis.vibe]);persist(track,analysis.vibe);}
   function toggleEffects(){setEffects(previous=>{const next=!previous;try{localStorage.setItem('teenman-auto-effects-v2',next?'on':'off');}catch{}return next;});}
   const visible=ready&&(Boolean(user)||(pathname!=='/'&&Boolean(track)));
-  return <MusicContext.Provider value={{user,ready,ownerProfile,track,playing,setPlaying,selectTrack,playTrack,playRequest,offerTrack,pinTrack,status,message,vibe:analysis.vibe,analyzing:analysis.loading,effects,toggleEffects,openSignal,refreshOwner}}>
+  return <MusicContext.Provider value={{taste:taste.history,recordTaste:taste.record,user,ready,ownerProfile,track,playing,setPlaying,selectTrack,playTrack,playRequest,offerTrack,pinTrack,status,message,vibe:analysis.vibe,analyzing:analysis.loading,effects,toggleEffects,openSignal,refreshOwner}}>
     {children}
     {visible&&<VibeWidget/>}
     <GlobalVibePalette active={visible&&playing&&effects} vibe={analysis.vibe}/>
