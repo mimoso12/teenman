@@ -17,7 +17,7 @@ export default function SocialShell({children,initialUser}:{children:ReactNode;i
   const [query,setQuery]=useState(''),[leaving,setLeaving]=useState(false),[message,setMessage]=useState('');
   const name=profile?.display_name||String(user?.user_metadata?.display_name||'Visitante');
   const handle=profile?.username?`@${profile.username}`:user?userHandle(name,user.id):'Entre na comunidade';
-  const selected=['/books','/sports','/news','/explore'].includes(pathname)?pathname.slice(1):pathname==='/games'?'games':pathname==='/civic'?'civic':pathname==='/music'?'music':pathname.startsWith('/profile')?'profile':params.get('view')||'home';
+  const selected=['/books','/sports','/news','/explore'].includes(pathname)?pathname.slice(1):pathname==='/games'?'games':pathname==='/civic'?'civic':pathname==='/music'?'music':pathname.startsWith('/profile')?'profile':['following','latest'].includes(params.get('view')||'')?'home':params.get('view')||'home';
   async function logout(){if(!supabase)return;setLeaving(true);setMessage('');try{const {error}=await supabase.auth.signOut();if(error)setMessage('Não foi possível sair. Tente novamente.');else{router.replace('/');}}catch{setMessage('Falha de conexão ao sair.');}finally{setLeaving(false);}}
   function search(event:FormEvent){event.preventDefault();router.push(`/explore?q=${encodeURIComponent(query.trim())}`);}
   return <PostComposerProvider user={user}><div className="social-shell">
