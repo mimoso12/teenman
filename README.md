@@ -158,3 +158,10 @@ As prévias usam URLs blob locais, revogadas ao remover ou substituir o arquivo.
 Para projetos novos ou cópias do banco, execute supabase/post-media.sql depois dos scripts iniciais. Ela cria/configura o bucket público e as políticas da pasta do usuário e adapta posts sem apagar conteúdo. No projeto conectado, post-media já existia público e permitia upload; as colunas category e as restrições de conteúdo/etiqueta foram aplicadas pelo SQL Editor. As permissões existentes do bucket foram mantidas.
 
 O feed usa consulta secundária em profiles pelos IDs únicos dos autores, evitando depender de FK para auth.users. Trata full_name e display_name conforme o esquema disponível, além de avatar_url e username. Mídias com colunas próprias e posts legados com URL na última linha continuam renderizando, inclusive na página de perfil. O evento de publicação insere a nova linha imediatamente no feed e revalida os dados sem reload.
+## Republicações
+
+O feed e o perfil usam public.reposts (user_id, post_id, created_at). A interface atualiza o ícone e o contador de forma otimista, impede cliques concorrentes, desfaz a alteração quando o banco rejeita a operação e reconcilia os dados depois. As consultas de contadores percorrem páginas de 500 registros para evitar truncamento pelo limite padrão do Supabase.
+
+Posts do perfil combina publicações próprias e republicações sem duplicar o mesmo post, ordenadas pela data da atividade mais recente. A aba Republicações busca os posts por ID, incluindo publicações antigas fora da página inicial do feed; posts excluídos não são exibidos. A autoria e a mídia continuam sendo do post original. As alterações locais e eventos Realtime atualizam as duas áreas sem navegação ou reload.
+
+Execute supabase/reposts.sql no SQL Editor para garantir a unicidade por usuário/post, as políticas de leitura/escrita e a publicação Realtime, e copiar o histórico legado de post_reposts sem removê-lo. A tabela canônica reposts já foi confirmada pela API no projeto conectado; esta migração não foi aplicada automaticamente nesta tarefa, pois o controle do navegador foi interrompido ao não conseguir verificar a URL com segurança.

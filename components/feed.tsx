@@ -11,6 +11,8 @@ import Avatar from './post-avatar';
 import {PostComposerForm} from './post-composer';
 import PostMedia from './post-media';
 import MovieCatalog from './movie-catalog';
+import {useReposts} from './use-reposts';
+import RepostButton from './repost-button';
 import Rooms, { type Room } from './rooms';
 
 type Interaction = { post_id: string; user_id: string; author_name: string; created_at: string };
@@ -29,7 +31,7 @@ export default function Feed({ initialUser }: { initialUser: User }) {
   const [authors,setAuthors]=useState<Record<string,PostAuthor>>({});
   const loadVersion=useRef(0);
   const [likes, setLikes] = useState<Interaction[]>([]);
-  const [reposts, setReposts] = useState<Interaction[]>([]);
+  const republications=useReposts(posts.map(post=>post.id),user.id),reposts=republications.rows;
   const [comments, setComments] = useState<Comment[]>([]);
   const [following, setFollowing] = useState<string[]>([]);
   const [socialReady, setSocialReady] = useState(false);
@@ -72,14 +74,13 @@ export default function Feed({ initialUser }: { initialUser: User }) {
       const ids = data.map(post => post.id);
       const results = await Promise.all([
         supabase.from('post_likes').select('*').in('post_id', ids),
-        supabase.from('post_reposts').select('*').in('post_id', ids),
         supabase.from('post_comments').select('*').in('post_id', ids).order('created_at'),
         supabase.from('follows').select('following_id').eq('follower_id', initialUser.id),
       ]);
       if(version!==loadVersion.current)return;
       setSocialReady(results.every(result => !result.error));
-      setLikes(results[0].data || []); setReposts(results[1].data || []); setComments(results[2].data || []);
-      setFollowing((results[3].data || []).map(row => row.following_id));
+      setLikes(results[0].data || []); setComments(results[1].data || []);
+      setFollowing((results[2].data || []).map(row => row.following_id));
     } catch { setMessage('Sem conexão. Tente atualizar o feed.'); }
     finally { if(version===loadVersion.current)setLoading(false); }
   }, [initialUser.id]);
@@ -93,7 +94,7 @@ export default function Feed({ initialUser }: { initialUser: User }) {
     void supabase.from('rooms').select('*').order('created_at', { ascending: false }).limit(50).then(({ data, error }) => { if (!error) setRooms(data || []); });
     let timer: ReturnType<typeof setTimeout>;
     const channel = supabase.channel(`feed-${initialUser.id}`);
-    for (const table of ['posts', 'post_likes', 'post_reposts', 'post_comments', 'follows', 'profiles']) {
+    for (const table of ['posts', 'post_likes', 'post_comments', 'follows', 'profiles']) {
       channel.on('postgres_changes', { event: '*', schema: 'public', table }, () => { clearTimeout(timer); timer = setTimeout(() => void loadPosts(), 200); });
     }
     channel.subscribe();
@@ -110,7 +111,7 @@ export default function Feed({ initialUser }: { initialUser: User }) {
     if (next === 'explore') requestAnimationFrame(() => search.current?.focus());
   }
   function selectTab(next: Tab) { router.push(`/feed?view=${next==='for-you'?'home':next}`); }
-  async function interact(post: Post, kind: 'like' | 'repost' | 'follow' | 'delete' | 'comment') {
+  async function interact(post: Post, kind: 'like' | 'follow' | 'delete' | 'comment') {
     if (!supabase || action) return;
     if (kind !== 'delete' && !socialReady) { setMessage(setupMessage); return; }
     if (kind === 'comment' && !comment.trim()) return;
@@ -127,8 +128,8 @@ export default function Feed({ initialUser }: { initialUser: User }) {
         const exists = following.includes(post.author_id);
         ({ error } = exists ? await supabase.from('follows').delete().eq('follower_id', user.id).eq('following_id', post.author_id) : await supabase.from('follows').insert({ follower_id: user.id, following_id: post.author_id }));
       } else {
-        const table = kind === 'like' ? 'post_likes' : 'post_reposts';
-        const exists = (kind === 'like' ? likes : reposts).some(row => row.post_id === post.id && row.user_id === user.id);
+        const table = 'post_likes';
+        const exists = likes.some(row => row.post_id === post.id && row.user_id === user.id);
         ({ error } = exists ? await supabase.from(table).delete().eq('post_id', post.id).eq('user_id', user.id) : await supabase.from(table).insert({ post_id: post.id, user_id: user.id, author_name: displayName }));
       }
       if (error) setMessage('Não foi possível concluir. Tente novamente.');
@@ -170,6 +171,7 @@ export default function Feed({ initialUser }: { initialUser: User }) {
       {view === 'catalog' && <MovieCatalog user={user}/>}
       {view === 'rooms' && <Rooms user={user} activeRoom={activeRoom} setActiveRoom={setActiveRoom} onRooms={setRooms}/>}
       {view === 'notifications' && <section className="social-notifications">{!socialReady ? <div className="social-empty"><Bell/><h2>Seu espaço de novidades.</h2><p>As interações estarão disponíveis após a atualização do banco.</p></div> : notifications.length === 0 ? <div className="social-empty"><Bell/><h2>Tudo em dia por aqui.</h2><p>Quando alguém curtir ou comentar nas suas publicações, você verá aqui.</p></div> : notifications.map(item => <button key={item.key} className="notification-row" onClick={() => { setView('home'); setTab('for-you'); setQuery(posts.find(post => post.id === item.post_id)?.content.slice(0, 35) || ''); }}><Bell size={21}/><span><strong>{item.author_name}</strong> {item.label}.<small>{new Date(item.created_at).toLocaleString('pt-BR')}</small></span></button>)}</section>}
+      {republications.error&&<div className="social-message" role="status">{republications.error}<button onClick={republications.retry}>Tentar novamente</button></div>}
       {showPosts && !loading && visiblePosts.length === 0 && <div className="social-empty"><Clapperboard/><h2>{query ? 'Nenhum resultado por aqui.' : tab === 'following' && view === 'home' ? 'Sua próxima conexão começa aqui.' : 'Toda conversa tem um começo.'}</h2><p>{query ? 'Tente outro nome ou assunto.' : tab === 'following' && view === 'home' ? 'Siga pessoas pelo menu de cada publicação para acompanhar suas histórias.' : view === 'catalog' ? 'Compartilhe filmes, livros e trailers para começar o catálogo da comunidade.' : 'Compartilhe uma ideia, um filme ou uma história com a comunidade.'}</p></div>}
       {showPosts && visiblePosts.map(post => {
         const parsed = postPresentation(post);
@@ -179,7 +181,7 @@ export default function Feed({ initialUser }: { initialUser: User }) {
         const reposted = reposts.some(row => row.post_id === post.id && row.user_id === user.id);
         const postComments = comments.filter(row => row.post_id === post.id);
         return <article key={post.id} className="social-post"><Link href={`/profile/${post.author_id}`} aria-label={`Perfil de ${authorName}`}><Avatar name={authorName} url={author?.avatar}/></Link><div className="social-post-body"><div className="social-post-heading"><strong><Link href={`/profile/${post.author_id}`}>{authorName}</Link></strong><span className="post-handle">{authorHandle}</span><span className="post-date">· {new Date(post.created_at).toLocaleDateString('pt-BR', { day: 'numeric', month: 'short', timeZone: 'America/Sao_Paulo' })}</span><details className="post-menu"><summary aria-label={`Opções da publicação de ${post.author_name}`}><MoreHorizontal size={20}/></summary><div>{post.author_id === user.id ? <button disabled={Boolean(action)} onClick={() => void interact(post, 'delete')}>Excluir publicação</button> : <button disabled={Boolean(action)} onClick={() => void interact(post, 'follow')}>{following.includes(post.author_id) ? 'Deixar de seguir' : 'Seguir autor'}</button>}</div></details></div>{category&&<span className="post-category-badge">{category.label}</span>}{parsed.text && <p className="social-post-text">{parsed.text}</p>}{parsed.media && <PostMedia key={parsed.media.url} media={parsed.media}/>}
-          <div className="post-actions"><button aria-label={`Comentar publicação de ${post.author_name}`} aria-expanded={commentPost === post.id} onClick={() => { setCommentPost(current => current === post.id ? null : post.id); setComment(''); }}><MessageCircle size={19}/><span>{postComments.length || ''}</span></button><button className={reposted ? 'reposted' : ''} aria-label="Repostar" aria-pressed={reposted} disabled={Boolean(action)} onClick={() => void interact(post, 'repost')}><Repeat2 size={19}/><span>{reposts.filter(row => row.post_id === post.id).length || ''}</span></button><button className={liked ? 'liked' : ''} aria-label="Curtir" aria-pressed={liked} disabled={Boolean(action)} onClick={() => void interact(post, 'like')}><Heart size={19} fill={liked ? 'currentColor' : 'none'}/><span>{likes.filter(row => row.post_id === post.id).length || ''}</span></button><button aria-label="Copiar publicação" onClick={async () => { try { await navigator.clipboard.writeText(post.content); setMessage('Publicação copiada.'); } catch { setMessage('Não foi possível copiar a publicação.'); } }}><Send size={17}/></button></div>
+          <div className="post-actions"><button aria-label={`Comentar publicação de ${post.author_name}`} aria-expanded={commentPost === post.id} onClick={() => { setCommentPost(current => current === post.id ? null : post.id); setComment(''); }}><MessageCircle size={19}/><span>{postComments.length || ''}</span></button><RepostButton count={reposts.filter(row=>row.post_id===post.id).length} active={reposted} disabled={republications.loading||Boolean(republications.busy)||Boolean(republications.error)} onClick={()=>void republications.toggle(post.id)}/><button className={liked ? 'liked' : ''} aria-label="Curtir" aria-pressed={liked} disabled={Boolean(action)} onClick={() => void interact(post, 'like')}><Heart size={19} fill={liked ? 'currentColor' : 'none'}/><span>{likes.filter(row => row.post_id === post.id).length || ''}</span></button><button aria-label="Copiar publicação" onClick={async () => { try { await navigator.clipboard.writeText(post.content); setMessage('Publicação copiada.'); } catch { setMessage('Não foi possível copiar a publicação.'); } }}><Send size={17}/></button></div>
           {commentPost === post.id && <div className="comments"><h3>Conversa</h3>{postComments.map(item => <div key={item.id} className="comment-row"><strong>{item.author_name}</strong><p>{item.content}</p></div>)}{!socialReady ? <p className="muted">Os comentários precisam da atualização do banco.</p> : <form onSubmit={e => { e.preventDefault(); void interact(post, 'comment'); }}><label className="sr-only" htmlFor={`comment-${post.id}`}>Sua resposta</label><input id={`comment-${post.id}`} placeholder="Escreva uma resposta" value={comment} onChange={e => setComment(e.target.value)} maxLength={500} required/><button className="pill solid" disabled={Boolean(action) || !comment.trim()}>Responder</button></form>}</div>}
         </div></article>;
       })}
