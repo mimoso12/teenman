@@ -1,11 +1,11 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { localMusicVibe, validateMusicVibe, vibeCacheKey, type VibeResult } from '../lib/music-vibe';
 import type { Track } from '../lib/vibe';
 type Entry = { result: VibeResult; expires: number };
 const cache = new Map<string, Entry>();
 const pending = new Map<string, Promise<VibeResult>>();
-const storageKey = 'teenman-music-vibes-v3';
+const storageKey = 'teenman-music-vibes-v4-scenes';
 function read(key: string): VibeResult | null {
   const hit = cache.get(key);
   if (hit && hit.expires > Date.now()) return hit.result;
@@ -47,6 +47,7 @@ export function useMusicVibe(track: Track | null, selected: boolean, enabled: bo
   const [entry, setEntry] = useState<{ key: string; result: VibeResult } | null>(null);
   const [loading, setLoading] = useState(false);
   const name = track?.name || '', artist = track?.artist || '', id = track?.id || '';
+  const fallback=useMemo(()=>selected&&enabled&&id?{...localMusicVibe(name,artist),source:'fallback' as const}:null,[selected,enabled,id,name,artist]);
   useEffect(() => {
     let active = true; setLoading(false);
     if (!selected || !enabled || !id) return;
@@ -56,5 +57,5 @@ export function useMusicVibe(track: Track | null, selected: boolean, enabled: bo
     void analyze({ id, name, artist, cover: null }).then(result => { if (active) { setEntry({ key, result }); setLoading(false); } });
     return () => { active = false; };
   }, [key, selected, enabled, name, artist, id]);
-  return { vibe: entry?.key === key ? entry.result : null, loading };
+  return { vibe: entry?.key === key ? entry.result : fallback, loading };
 }

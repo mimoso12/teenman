@@ -9,6 +9,7 @@ import type { VibeResult } from '../lib/music-vibe';
 import { useMusicVibe } from './use-music-vibe';
 import VibeWidget from './vibe-widget';
 import AiStageEffects from './AiStageEffects';
+import GlobalVibePalette from './global-vibe-palette';
 type MusicContextValue = {
   user:User|null; ready:boolean; ownerProfile:ProfileData|null; track:Track|null; playing:boolean;
   setPlaying:(value:boolean)=>void; selectTrack:(track:Track,pin?:boolean)=>void; offerTrack:(track:Track)=>void;
@@ -90,6 +91,7 @@ export default function MusicProvider({children}:{children:ReactNode}){
   return <MusicContext.Provider value={{user,ready,ownerProfile,track,playing,setPlaying,selectTrack,playTrack,playRequest,offerTrack,pinTrack,status,message,vibe:analysis.vibe,analyzing:analysis.loading,effects,toggleEffects,openSignal,refreshOwner}}>
     {children}
     {visible&&<VibeWidget/>}
+    <GlobalVibePalette active={visible&&playing&&effects} vibe={analysis.vibe}/>
     <AiStageEffects playing={visible&&playing} enabled={effects} vibe={analysis.vibe}/>
   </MusicContext.Provider>;
 }
