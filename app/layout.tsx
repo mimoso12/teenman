@@ -10,6 +10,7 @@ import './music.css';
 import './civic.css';
 import './games.css';
 import './culture.css';
+import './post-composer.css';
 import MusicProvider from '../components/music-provider';
 export const metadata: Metadata = { title: 'Teenman — seu espaço, sua galera', description: 'Compartilhe ideias e descubra novas conexões.' };
 export default function Layout({ children }: Readonly<{ children: React.ReactNode }>) {

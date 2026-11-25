@@ -7,16 +7,19 @@ import { fetchProfile,profileImage,type ProfileData } from '../lib/profile';
 import { trackFromProfile } from '../lib/vibe';
 import { localMusicVibe } from '../lib/music-vibe';
 import { splitPost,userHandle } from '../lib/post-media';
+import {loadPostAuthors,postPresentation,type FeedPost,type PostAuthor} from '../lib/post-composer';
+import PostAvatar from './post-avatar';
 import PostMedia from './post-media';
 import ProfileEditor from './profile-editor';
 import { useMusic } from './music-provider';
-type Post={id:string;author_id:string;author_name:string;content:string;created_at:string;replyTo?:string};
+type Post=FeedPost & {replyTo?:string};
 type Tab='posts'|'replies'|'catalog'|'likes';
 const tabs:{id:Tab;label:string}[]=[{id:'posts',label:'Posts'},{id:'replies',label:'Respostas'},{id:'catalog',label:'Filmes & Livros'},{id:'likes',label:'Curtidas'}];
 export default function ProfileScreen({initialProfile,viewerId}:{initialProfile:ProfileData;viewerId:string|null}){
   const music=useMusic();const [profile,setProfile]=useState(initialProfile);
   const userId=music.user?.id||viewerId,isOwner=userId===profile.id;
   const [tab,setTab]=useState<Tab>('posts'),[editing,setEditing]=useState(false);
+  const [authors,setAuthors]=useState<Record<string,PostAuthor>>({}),[revision,setRevision]=useState(0);
   const [items,setItems]=useState<Post[]>([]),[loading,setLoading]=useState(true),[notice,setNotice]=useState('');
   const [postCount,setPostCount]=useState<number|null>(null),[counts,setCounts]=useState<{following:number|null;followers:number|null}>({following:null,followers:null});
   const [following,setFollowing]=useState(false),[followBusy,setFollowBusy]=useState(false);
@@ -32,7 +35,8 @@ export default function ProfileScreen({initialProfile,viewerId}:{initialProfile:
     if(!posts.error)setPostCount(posts.count||0);
     if(userId&&userId!==profile.id){const follow=await supabase.from('follows').select('following_id').eq('follower_id',userId).eq('following_id',profile.id).maybeSingle();if(!follow.error)setFollowing(Boolean(follow.data));}
   },[profile.id,userId]);
-  useEffect(()=>{void loadCounts();},[loadCounts]);
+  useEffect(()=>{void loadCounts();},[loadCounts,revision]);
+  useEffect(()=>{const refresh=()=>setRevision(value=>value+1);window.addEventListener('teenman-post-created',refresh);return()=>window.removeEventListener('teenman-post-created',refresh);},[]);
   useEffect(()=>{
     if(!supabase)return;
     const client=supabase;let active=true;
@@ -48,6 +52,7 @@ export default function ProfileScreen({initialProfile,viewerId}:{initialProfile:
         if(tab==='replies'){
           const result=await supabase.from('post_comments').select('*').eq('author_id',profile.id).order('created_at',{ascending:false}).limit(50);
           if(result.error)throw result.error;
+          const profiles=await loadPostAuthors(supabase,(result.data||[]).map(row=>row.author_id));if(active)setAuthors(profiles);
           if(active)setItems((result.data||[]).map(row=>({...row,id:`reply-${row.id}`,replyTo:row.post_id})));
         }else{
           let ids:string[]|null=null;
@@ -59,13 +64,14 @@ export default function ProfileScreen({initialProfile,viewerId}:{initialProfile:
           query=ids?query.in('id',ids):query.eq('author_id',profile.id);
           const result=await query;if(result.error)throw result.error;
           const posts=(result.data||[]) as Post[];
+          const profiles=await loadPostAuthors(supabase,posts.map(post=>post.author_id));if(active)setAuthors(profiles);
           if(active)setItems(tab==='catalog'?posts.filter(post=>/filme|livro|cinema|série|serie|leitura|trailer|história/i.test(post.content)||splitPost(post.content).media?.kind==='embed'):posts);
         }
       }catch{if(active){setItems([]);setNotice('Não foi possível carregar esta atividade. Tente novamente mais tarde.');}}
       finally{if(active)setLoading(false);}
     }
     void load();return()=>{active=false;};
-  },[profile.id,tab,userId]);
+  },[profile.id,tab,userId,revision]);
   async function follow(){
     if(!supabase||!userId||followBusy)return;setFollowBusy(true);setNotice('');
     try{
@@ -81,7 +87,7 @@ export default function ProfileScreen({initialProfile,viewerId}:{initialProfile:
     </div></section>
     <div className="profile-tabs" role="tablist" aria-label="Publicações do perfil">{tabs.map(item=><button key={item.id} role="tab" aria-selected={tab===item.id} onClick={()=>setTab(item.id)}>{item.label}</button>)}</div>
     {notice&&<p className="social-message" role="status">{notice}</p>}
-    {loading?<p className="social-status" role="status">Carregando publicações…</p>:items.length===0&&!notice?<section className="social-empty"><h2>{isOwner?'Suas histórias começam aqui.':'Ainda sem publicações por aqui.'}</h2><p>{tab==='posts'?'As publicações aparecem nesta aba.':'A atividade deste perfil aparecerá aqui.'}</p></section>:items.map(post=>{const parsed=splitPost(post.content);return <article className="social-post" key={post.id}><Link className="avatar" href={`/profile/${post.author_id}`}>{post.author_id===profile.id&&avatar?<img src={avatar} alt=""/>:post.author_name.slice(0,1).toUpperCase()}</Link><div className="social-post-body"><div className="social-post-heading"><strong><Link href={`/profile/${post.author_id}`}>{post.author_name}</Link></strong><span className="post-date">· {new Date(post.created_at).toLocaleDateString('pt-BR',{day:'numeric',month:'short'})}</span></div>{post.replyTo&&<small className="profile-reply-label">Em resposta a uma conversa</small>}{parsed.text&&<p className="social-post-text">{parsed.text}</p>}{parsed.media&&<PostMedia media={parsed.media}/>}<Link className="profile-post-conversation" href={`/feed?view=explore&q=${encodeURIComponent(post.content.slice(0,35))}`}>Ver conversa</Link></div></article>;})}
+    {loading?<p className="social-status" role="status">Carregando publicações…</p>:items.length===0&&!notice?<section className="social-empty"><h2>{isOwner?'Suas histórias começam aqui.':'Ainda sem publicações por aqui.'}</h2><p>{tab==='posts'?'As publicações aparecem nesta aba.':'A atividade deste perfil aparecerá aqui.'}</p></section>:items.map(post=>{const parsed=postPresentation(post),author=authors[post.author_id],authorName=author?.name||post.author_name;return <article className="social-post" key={post.id}><Link href={`/profile/${post.author_id}`}><PostAvatar name={authorName} url={author?.avatar||(post.author_id===profile.id?avatar:null)}/></Link><div className="social-post-body"><div className="social-post-heading"><strong><Link href={`/profile/${post.author_id}`}>{authorName}</Link></strong><span className="post-date">· {new Date(post.created_at).toLocaleDateString('pt-BR',{day:'numeric',month:'short'})}</span></div>{post.replyTo&&<small className="profile-reply-label">Em resposta a uma conversa</small>}{parsed.text&&<p className="social-post-text">{parsed.text}</p>}{parsed.media&&<PostMedia media={parsed.media}/>}<Link className="profile-post-conversation" href={`/feed?view=explore&q=${encodeURIComponent(post.content.slice(0,35))}`}>Ver conversa</Link></div></article>;})}
     {isOwner&&<ProfileEditor profile={profile} open={editing} onClose={()=>setEditing(false)} onSaved={next=>{setProfile(next);void music.refreshOwner();}}/>}
   </main>;
 }
