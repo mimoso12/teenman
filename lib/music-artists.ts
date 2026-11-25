@@ -1,7 +1,7 @@
 import {safeCover,validTrackId} from './vibe';
 import type {CatalogTrack} from './music-catalog';
 export type MusicArtist={id:string;name:string;image:string|null;genres:string[];followers:number|null;popularity:number|null};
-export type ArtistDetails={artist:MusicArtist;tracks:CatalogTrack[];trackSource:'top'|'search'|'unavailable';biography:string|null;biographyUrl:string|null};
+export type ArtistDetails={artist:MusicArtist;tracks:CatalogTrack[];trackSource:'search'|'unavailable';biography:string|null;biographyUrl:string|null};
 export function formatArtist(raw:any):MusicArtist|null{
  if(!raw||!validTrackId(raw.id)||typeof raw.name!=='string')return null;
  const number=(value:unknown)=>typeof value==='number'&&Number.isFinite(value)&&value>=0?Math.floor(value):null;
