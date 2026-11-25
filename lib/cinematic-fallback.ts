@@ -1,0 +1,18 @@
+import {defaultDirection,type SceneDirection} from './cinematic-schema';
+const normalize=(value:string)=>value.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+export function fallbackDirection(track:string,artist:string,theme:string){
+ const text=normalize(track+' '+artist),a=normalize(artist);let direction=defaultDirection(theme),name:string|undefined,emojis:string[]|undefined,primary:string|undefined,secondary:string|undefined;
+ const set=(title:string,parts:Partial<SceneDirection>,icons:string[],p?:string,s?:string)=>{name=title;direction={...direction,...parts};emojis=icons;primary=p;secondary=s;};
+ if(/\b(no mercy|overwatch|esports?|fps|valorant)\b/.test(text))set('Arena Sem Misericórdia',{horizonSilhouette:'cyber-arena-hud',skyCenterpiece:'gamer-crosshair',skyFlyer:'cyber-drones',lightingFilter:'cyber-grid',skyEffect:'neon-lasers',emojiMotion:'orbit-dance'},['🎮','🎯','🤖','⚡','💠'],'#22d3ee','#a78bfa');
+ else if(/join us for a bite|five nights|freddy|fnaf|it.?s been so long|jt music|\bcg5\b|dagames/.test(text))set('Última Sessão na Pizzaria',{horizonSilhouette:'fnaf-pizzeria',skyCenterpiece:'security-cam-hud',skyFlyer:'animatronic-dancers',lightingFilter:'pizzeria-neon-flicker',skyEffect:'arcade-sparks',emojiMotion:'pulse-burst'},['🐻','🍕','🎤','📹','⚡'],'#7c3aed','#f59e0b');
+ else if(/7 minutoz|m4rkim|enygma|anime|naruto|one piece|dragon ball|rap geek|attack on titan/.test(text))set('Portal dos Heróis',{horizonSilhouette:'anime-torii-temple',skyCenterpiece:'eclipse-ring',skyFlyer:'energy-slashes',lightingFilter:'aurora-borealis',skyEffect:'floating-petals',emojiMotion:'spiral-vortex'},['⛩️','⚔️','🌸','🔥','✨'],'#f472b6','#818cf8');
+ else if(theme==='christmas-city'||/\bsimone\b/.test(a)&&/natal|entao e natal/.test(text))direction=defaultDirection('christmas-city');
+ else if(/halloween|thriller|terror|spooky|haunted|cemiterio/.test(text))set('Baile das Sombras',{...defaultDirection('gothic-mystery')},['🎃','🦇','🌙','🕯️','👻'],'#b589ec','#ef9147');
+ else if(/ana castela|gusttavo|jorge.*mateus|henrique.*juliano|luan santana/.test(a)||/universitario|agronejo|agro|rodeio/.test(text))set('Noite de Rodeio & Estrelas',{horizonSilhouette:'sertanejo-arena',skyCenterpiece:'full-moon',skyFlyer:'golden-fireworks-sky',lightingFilter:'rodeo-pyrotechnics',skyEffect:'golden-dust',emojiMotion:'rise-float'},['🤠','🎸','👢','🌾','✨'],'#f2bb63','#e98154');
+ else if(/chitaozinho|xororo|zeze|modao|country|morgan wallen/.test(text))direction=defaultDirection('country-ranch');
+ else if(/metallica|linkin park|slipknot|metal|grunge|nirvana/.test(text))direction=defaultDirection('epic-fire');
+ else if(/queen|coldplay|legiao urbana|classic rock|indie|pop rock/.test(text))set('Guitarras Sob os Holofotes',{horizonSilhouette:'classic-rock-stage',skyCenterpiece:'full-moon',skyFlyer:'shooting-comet',lightingFilter:'concert-spotlights',skyEffect:'musical-notes',emojiMotion:'drift-across'},['🎸','🎤','🎶','⭐','⚡'],'#89b9ef','#efc88c');
+ else if(/dua lipa|lady gaga|alok|dance|eletronic/.test(text))set('Cidade em Ritmo de Neon',{horizonSilhouette:'pop-neon-city',skyCenterpiece:'disco-ball',skyFlyer:'neon-birds',lightingFilter:'concert-spotlights',skyEffect:'confetti-burst',emojiMotion:'pulse-burst'},['🪩','💃','🎶','✨','💎'],'#f472b6','#67e8f9');
+ else if(/taylor swift|ariana grande|billie eilish/.test(a)&&theme!=='country-ranch')set('Sonhos Entre Nuvens',{horizonSilhouette:'pop-dream-clouds',skyCenterpiece:'neon-heart',skyFlyer:'paper-planes',lightingFilter:'aurora-borealis',skyEffect:'floating-petals',emojiMotion:'orbit-dance'},['☁️','💜','🌸','✨','🎶'],'#e9a5d8','#afa4f4');
+ return {direction,name,emojis,primary,secondary};
+}
