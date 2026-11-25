@@ -1,16 +1,9 @@
-# Arquitetura e Regras do Projeto
+<!-- BEGIN:nextjs-agent-rules -->
 
-## Visão Geral
-Plataforma social híbrida (Feed estilo X + Salas de chat em tempo real estilo Discord + Perfil/Portfólio profissional estilo LinkedIn) voltada para adolecentes,cinefolos,politicos e entre outros
+## This is NOT the Next.js you know
 
-## Stack Tecnológica
-- **Framework:** Next.js (App Router) com TypeScript
-- **Estilização:** Tailwind CSS
-- **Banco de Dados & Auth:** Prisma ORM (SQLite para desenvolvimento local fácil, pronto para migrar para PostgreSQL/Supabase) + NextAuth.js
-- **Ícones:** Lucide React
+This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
 
-## Regras de Código
-1. Sempre use TypeScript estrito (evite `any`).
-2. Crie componentes pequenos e reutilizáveis na pasta `src/components/`.
-3. Mantenha o visual moderno em Dark Mode por padrão (inspirado no Discord/X).
-4. Garanta que `npm run build` e `npm run lint` passem sem erros antes de finalizar qualquer tarefa.
+This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
+
+<!-- END:nextjs-agent-rules -->

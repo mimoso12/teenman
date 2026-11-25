@@ -1,0 +1,13 @@
+'use client';
+import {useRef,useState} from 'react';
+import Link from 'next/link';
+import type {User} from '@supabase/supabase-js';
+import {ImageOff} from 'lucide-react';
+import {supabase} from '../lib/supabase';
+export function RemoteImage({src,alt,className=''}:{src:string|null;alt:string;className?:string}){const [failed,setFailed]=useState<string|null>(null);return <span className={`culture-image ${className}`}>{src&&failed!==src?<img src={src} alt={alt} loading="lazy" decoding="async" onError={()=>setFailed(src)}/>:<ImageOff size={25} aria-label="Imagem indisponível"/>}</span>;}
+export function CatalogStatus({loading,error,retry,empty=false}:{loading:boolean;error:string;retry:()=>void;empty?:boolean}){return loading?<div className="culture-skeleton" role="status" aria-label="Carregando">{Array.from({length:6},(_,i)=><div key={i}/>)}</div>:error?<div className="catalog-empty"><h2>A fonte faz uma breve pausa.</h2><p>{error}</p><button className="pill outline" onClick={retry}>Tentar novamente</button></div>:empty?<div className="catalog-empty"><h2>Nenhum resultado encontrado.</h2><p>Tente outra busca ou categoria.</p></div>:null;}
+export function FeedShareButton({user,content,label='Comentar no Feed'}:{user:User|null;content:string;label?:string}){
+ const [busy,setBusy]=useState(false),[posted,setPosted]=useState(false),[error,setError]=useState('');const lock=useRef(false),postId=useRef<string|null>(null);
+ async function publish(){if(!supabase||lock.current||posted)return;lock.current=true;setBusy(true);setError('');try{if(!content.trim()||content.length>1000)throw new Error('content');const {data}=await supabase.auth.getUser();if(!data.user)throw new Error('session');postId.current??=crypto.randomUUID();const result=await supabase.from('posts').insert({id:postId.current,author_id:data.user.id,author_name:String(data.user.user_metadata?.display_name||'Membro Teenman'),content});if(result.error){if(result.error.code!=='23505')throw result.error;const existing=await supabase.from('posts').select('id').eq('id',postId.current).eq('author_id',data.user.id).maybeSingle();if(existing.error||!existing.data)throw result.error;}setPosted(true);window.dispatchEvent(new Event('teenman-post-created'));}catch{setError('Não foi possível publicar. Tente novamente.');}finally{lock.current=false;setBusy(false);}}
+ return <div className="culture-share">{!user?<Link href="/" className="pill outline">Entre para comentar no feed</Link>:posted?<p role="status">Publicado. <Link href="/feed">Ver no feed</Link></p>:<button className="pill outline" disabled={busy} onClick={publish}>{busy?'Publicando…':label}</button>}{error&&<p role="status">{error}</p>}</div>;
+}

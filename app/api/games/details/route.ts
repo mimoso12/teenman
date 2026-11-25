@@ -1,0 +1,3 @@
+import {gamesService} from '../../../../lib/games-service';
+import type {GameSource} from '../../../../lib/games';
+export async function GET(request:Request){try{const url=new URL(request.url),source=url.searchParams.get('source')||'rawg',id=url.searchParams.get('id')||'',title=url.searchParams.get('title')?.trim()||'';if(!['rawg','steam','cheapshark'].includes(source)||!/^\d{1,12}$/.test(id)||Number(id)<1||title.length>250)return Response.json({details:null,error:'Jogo inválido.'},{status:400});return Response.json({details:await gamesService.details(source as GameSource,id,title)});}catch{return Response.json({details:null,unavailable:true,error:'Os detalhes estão indisponíveis no momento.'},{headers:{'Cache-Control':'no-store'}});}}
