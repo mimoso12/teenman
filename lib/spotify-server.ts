@@ -22,10 +22,10 @@ async function accessToken() {
   })();
   try { return await pendingToken; } finally { pendingToken = null; }
 }
-export async function spotifyGet(path: string, retry = true): Promise<any> {
+export async function spotifyGet(path: string, retry = true, revalidate?: number): Promise<any> {
   const value = await accessToken();
-  const response = await fetch(`https://api.spotify.com/v1/${path}`, { headers: { Authorization: `Bearer ${value}` }, cache: 'no-store', signal: AbortSignal.timeout(8000) });
-  if (response.status === 401 && retry) { token = null; return spotifyGet(path, false); }
+  const response = await fetch(`https://api.spotify.com/v1/${path}`, { headers: { Authorization: `Bearer ${value}` }, ...(revalidate?{next:{revalidate}}:{cache:'no-store' as const}), signal: AbortSignal.timeout(8000) });
+  if (response.status === 401 && retry) { token = null; return spotifyGet(path, false, revalidate); }
   if (!response.ok) throw new SpotifyUnavailable(response.status === 429 ? 429 : response.status === 404 ? 404 : 503);
   return response.json();
 }
