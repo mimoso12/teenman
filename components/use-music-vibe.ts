@@ -5,7 +5,7 @@ import type { Track } from '../lib/vibe';
 type Entry = { result: VibeResult; expires: number };
 const cache = new Map<string, Entry>();
 const pending = new Map<string, Promise<VibeResult>>();
-const storageKey = 'teenman-music-vibes-v4-scenes';
+const storageKey = 'music_vibe_v3_cache';
 function read(key: string): VibeResult | null {
   const hit = cache.get(key);
   if (hit && hit.expires > Date.now()) return hit.result;
