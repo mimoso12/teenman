@@ -1,6 +1,7 @@
 import {createLyricsService,type LyricContext} from './lyrics-service';
 import {cinematicPrompt,cinematicResponseSchema} from './cinematic-prompt';
 import {validateDirection} from './cinematic-schema';
+import {isGhostbustersTrack} from './cinematic-fallback';
 import { localMusicVibe, validateMusicVibe, vibeCacheKey, type VibeResult } from './music-vibe';
 type Options = { key: () => string | undefined; model?: () => string | undefined; fetcher?: typeof fetch; now?: () => number; lyrics?:(track:string,artist:string)=>Promise<LyricContext> };
 export function parseMusicVibeJson(raw:string):unknown {
@@ -61,8 +62,10 @@ export function createMusicVibeService(options: Options) {
           const data = await response.json();
           const raw = data.candidates?.[0]?.content?.parts?.filter((part: { thought?: boolean }) => !part.thought).map((part: { text?: string }) => part.text || '').join('') || '';
           let parsed:unknown;try{parsed=parseMusicVibeJson(raw);}catch{throw new Error('JSON Gemini inválido (conteúdo omitido).');}
-          const vibe = validateMusicVibe(parsed);
+          let vibe = validateMusicVibe(parsed);
           if (!vibe||!validateDirection(vibe as Record<string,unknown>)) throw new Error('Resposta Gemini rejeitada: esquema inválido ou nome genérico.');
+          // The requested franchise policy is deterministic, even if the model drifts.
+          if(isGhostbustersTrack(trackName,artistName))vibe={...localMusicVibe(trackName,artistName),vibeName:vibe.vibeName,lyricInspo:vibe.lyricInspo};
           result = { ...vibe,lyricInspo:lyricContext.status==='found'?'LRCLIB · '+vibe.lyricInspo!.slice(0,169):lyricContext.status==='instrumental'?'Faixa instrumental no LRCLIB; direção baseada nos metadados.':'Letra não encontrada; direção inspirada no título e no artista.', source: 'gemini' };
         } catch(error) { if(!reported)console.error('[music-vibe] Falha na análise Gemini; usando análise local.',{error:safe(error instanceof Error?error.message:'Erro desconhecido')}); }
       }

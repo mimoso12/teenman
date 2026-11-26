@@ -1,9 +1,11 @@
 import {defaultDirection,type SceneDirection} from './cinematic-schema';
 const normalize=(value:string)=>value.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+export function isGhostbustersTrack(track:string,artist:string){return /ghost[ -]?busters|ray parker(?: jr)?|\bbustin(?:g)?\b|caca[ -]?fantasmas/.test(normalize(track+' '+artist));}
 export function fallbackDirection(track:string,artist:string,theme:string){
  const text=normalize(track+' '+artist),a=normalize(artist);let direction=defaultDirection(theme),name:string|undefined,emojis:string[]|undefined,primary:string|undefined,secondary:string|undefined;
  const set=(title:string,parts:Partial<SceneDirection>,icons:string[],p?:string,s?:string)=>{name=title;direction={...direction,...parts};emojis=icons;primary=p;secondary=s;};
- if(/\b(no mercy|overwatch|esports?|fps|valorant)\b/.test(text))set('Arena Sem Misericórdia',{horizonSilhouette:'cyber-arena-hud',skyCenterpiece:'gamer-crosshair',skyFlyer:'cyber-drones',lightingFilter:'cyber-grid',skyEffect:'neon-lasers',emojiMotion:'orbit-dance'},['🎮','🎯','🤖','⚡','💠'],'#22d3ee','#a78bfa');
+ if(isGhostbustersTrack(track,artist))set('Caça Ectoplásmica na Cidade',{...defaultDirection('ghostbusters-show')},['👻','🚨','⚡','🌌','✨'],'#22c55e','#06b6d4');
+ else if(/\b(no mercy|overwatch|esports?|fps|valorant)\b/.test(text))set('Arena Sem Misericórdia',{horizonSilhouette:'cyber-arena-hud',skyCenterpiece:'gamer-crosshair',skyFlyer:'cyber-drones',lightingFilter:'cyber-grid',skyEffect:'neon-lasers',emojiMotion:'orbit-dance'},['🎮','🎯','🤖','⚡','💠'],'#22d3ee','#a78bfa');
  else if(/join us for a bite|five nights|freddy|fnaf|it.?s been so long|jt music|\bcg5\b|dagames/.test(text))set('Última Sessão na Pizzaria',{horizonSilhouette:'fnaf-pizzeria',skyCenterpiece:'security-cam-hud',skyFlyer:'animatronic-dancers',lightingFilter:'pizzeria-neon-flicker',skyEffect:'arcade-sparks',emojiMotion:'pulse-burst'},['🐻','🍕','🎤','📹','⚡'],'#7c3aed','#f59e0b');
  else if(/7 minutoz|m4rkim|enygma|anime|naruto|one piece|dragon ball|rap geek|attack on titan/.test(text))set('Portal dos Heróis',{horizonSilhouette:'anime-torii-temple',skyCenterpiece:'eclipse-ring',skyFlyer:'energy-slashes',lightingFilter:'aurora-borealis',skyEffect:'floating-petals',emojiMotion:'spiral-vortex'},['⛩️','⚔️','🌸','🔥','✨'],'#f472b6','#818cf8');
  else if(theme==='christmas-city'||/\bsimone\b/.test(a)&&/natal|entao e natal/.test(text))direction=defaultDirection('christmas-city');

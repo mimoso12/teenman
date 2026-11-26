@@ -1,12 +1,12 @@
 import {defaultDirection,validateDirection,legacyTheme,type SceneDirection} from './cinematic-schema';
 import {fallbackDirection} from './cinematic-fallback';
 export const effectTypes = ['rain','snow','fireworks','neon-aurora','siren','stars','hearts','confetti','lightning'] as const;
-export const sceneThemes=['christmas-city','cyberpunk-neon','rainy-window','space-cosmos','tropical-sunset','epic-fire','love-aurora','gothic-mystery','party-festival','country-ranch','urban-street'] as const;
+export const sceneThemes=['christmas-city','cyberpunk-neon','rainy-window','space-cosmos','tropical-sunset','epic-fire','love-aurora','gothic-mystery','party-festival','country-ranch','urban-street','ghostbusters-show'] as const;
 export type SceneTheme=typeof sceneThemes[number];
 export type MusicVibe={vibeName:string;sceneTheme:SceneTheme;emojis:string[];primaryColor:string;secondaryColor:string;bgTint:string;borderColor:string;effectType:typeof effectTypes[number];glowColor:string}&Partial<SceneDirection>;
 export type VibeResult=MusicVibe & {source:'gemini'|'fallback'};
-export const vibeCacheKey=(track:string,artist:string)=>'music_vibe_v9_'+JSON.stringify([track.trim().normalize('NFKC').toLocaleLowerCase('pt-BR'),artist.trim().normalize('NFKC').toLocaleLowerCase('pt-BR')]);
-const sceneEffects:Record<SceneTheme,MusicVibe['effectType']>={'christmas-city':'snow','cyberpunk-neon':'neon-aurora','rainy-window':'rain','space-cosmos':'stars','tropical-sunset':'neon-aurora','epic-fire':'fireworks','love-aurora':'hearts','gothic-mystery':'stars','party-festival':'confetti','country-ranch':'stars','urban-street':'neon-aurora'};
+export const vibeCacheKey=(track:string,artist:string)=>'music_vibe_v10_'+JSON.stringify([track.trim().normalize('NFKC').toLocaleLowerCase('pt-BR'),artist.trim().normalize('NFKC').toLocaleLowerCase('pt-BR')]);
+const sceneEffects:Record<SceneTheme,MusicVibe['effectType']>={'christmas-city':'snow','cyberpunk-neon':'neon-aurora','rainy-window':'rain','space-cosmos':'stars','tropical-sunset':'neon-aurora','epic-fire':'fireworks','love-aurora':'hearts','gothic-mystery':'stars','party-festival':'confetti','country-ranch':'stars','urban-street':'neon-aurora','ghostbusters-show':'neon-aurora'};
 const legacyScenes:Record<MusicVibe['effectType'],SceneTheme>={rain:'rainy-window',snow:'christmas-city',fireworks:'epic-fire','neon-aurora':'cyberpunk-neon',siren:'cyberpunk-neon',stars:'space-cosmos',hearts:'love-aurora',confetti:'party-festival',lightning:'rainy-window'};
 const hex=(value:unknown):value is string=>typeof value==='string'&&/^#[0-9a-f]{6}$/i.test(value);
 function tint(color:string,alpha=.22){return `rgba(${parseInt(color.slice(1,3),16)},${parseInt(color.slice(3,5),16)},${parseInt(color.slice(5,7),16)},${alpha})`;}

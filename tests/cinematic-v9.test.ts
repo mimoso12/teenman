@@ -25,7 +25,7 @@ test('LRCLIB encerra consulta em 2,5 segundos e não inicia fallback após timeo
  let calls=0;const start=Date.now();const service=createLyricsService(async(_url,options)=>{calls++;await new Promise<void>((_resolve,reject)=>{const timer=setTimeout(()=>reject(new Error('deadline não respeitado')),3500);options?.signal?.addEventListener('abort',()=>{clearTimeout(timer);reject(new Error('timeout'));},{once:true});});return Response.json(record);});assert.equal((await service.find('A','B')).status,'unavailable');assert.equal(calls,1);assert.ok(Date.now()-start<3300);
 });
 test('seis camadas têm mais de 400 mil combinações e rejeitam campos arbitrários',()=>{
- assert.equal(sceneCombinationCount,4248552);const vibe=localMusicVibe('Join Us for a Bite','JT Music');assert.ok(validateMusicVibe(vibe));assert.equal(vibe.emojis.length,5);assert.equal(vibe.primaryColor,'#7c3aed');assert.equal(vibe.secondaryColor,'#f59e0b');
+ assert.equal(sceneCombinationCount,4441668);const vibe=localMusicVibe('Join Us for a Bite','JT Music');assert.ok(validateMusicVibe(vibe));assert.equal(vibe.emojis.length,5);assert.equal(vibe.primaryColor,'#7c3aed');assert.equal(vibe.secondaryColor,'#f59e0b');
  for(const [key,values] of Object.entries(directionEnums)){for(const value of values)assert.ok(validateDirection({...vibe,[key]:value}),`${key} ${value}`);assert.equal(validateMusicVibe({...vibe,[key]:'<script>'}),null);}
  assert.equal(validateMusicVibe({...vibe,emojis:['🔥','✨']}),null);assert.equal(validateMusicVibe({...vibe,lyricInspo:'<img>'}),null);
 });
@@ -41,4 +41,7 @@ test('Gemini recebe letra real limitada e devolve apenas direção, sem reenviar
 test('sem letra não atribui versos inexistentes e Gemini inválido mantém seis camadas locais',async()=>{
  const direction=localMusicVibe('Natal','Pentatonix');const options={key:()=>'test-key',lyrics:async()=>({lyrics:null,status:'unavailable' as const,url:null})};const service=createMusicVibeService({...options,fetcher:async()=>Response.json({candidates:[{content:{parts:[{text:JSON.stringify({...direction,lyricInspo:'Uma letra que não foi consultada.'})}]}}]})});const result=await service.generate('Natal','Pentatonix');assert.match(result.lyricInspo!,/não encontrada/);
  const bad=createMusicVibeService({...options,fetcher:async()=>Response.json({candidates:[{content:{parts:[{text:'not JSON'}]}}]})});assert.ok(validateDirection((await bad.generate('Natal','Pentatonix')) as Record<string,unknown>));
+});
+test('a política Ghostbusters conserva texto criativo da IA e corrige eventual desvio de cenário',async()=>{
+ const service=createMusicVibeService({key:()=>'test-key',lyrics:async()=>({lyrics:null,status:'unavailable',url:null}),fetcher:async()=>Response.json({candidates:[{content:{parts:[{text:JSON.stringify({...localMusicVibe('Natal','Pentatonix'),vibeName:'Caçada Sob as Luzes da Cidade'})}]}}]})});const result=await service.generate('Ghostbusters','Ray Parker Jr.');assert.equal(result.source,'gemini');assert.equal(result.vibeName,'Caçada Sob as Luzes da Cidade');assert.equal(result.sceneTheme,'ghostbusters-show');assert.equal(result.horizonSilhouette,'ghostbusters-show');assert.equal(result.primaryColor,'#22c55e');
 });
