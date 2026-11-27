@@ -36,7 +36,7 @@ export function PostComposerForm({user,onPublished,onBusy,modal=false}:{user:Use
 }
 export default function PostComposerProvider({children,user}:{children:ReactNode;user:User|null}){
  const params=useSearchParams(),dialog=useRef<HTMLDialogElement>(null),busy=useRef(false),[opened,setOpened]=useState(false),[notice,setNotice]=useState(false);
- const compose=params.get('compose');useEffect(()=>{if(compose&&user)setOpened(true);},[compose,user?.id]);
+ const compose=params.get('compose');useEffect(()=>{if(compose==='1'&&user)setOpened(true);},[compose,user?.id]);
  useEffect(()=>{if(opened&&user)dialog.current?.showModal();else dialog.current?.close();},[opened,user?.id]);
  function close(){if(!busy.current)setOpened(false);}
  return <Context.Provider value={{open:()=>{if(user)setOpened(true);}}}>{children}<dialog ref={dialog} className="post-composer-dialog" aria-labelledby="global-post-title" onCancel={event=>{event.preventDefault();close();}} onClick={event=>{if(event.target===dialog.current)close();}}><header><h2 id="global-post-title">Criar publicação</h2><button aria-label="Fechar publicação" onClick={close}><X size={21}/></button></header>{user&&<PostComposerForm key={user.id} user={user} modal onBusy={value=>busy.current=value} onPublished={()=>{setOpened(false);setNotice(true);}}/>}</dialog>{notice&&<div className="post-published-toast" role="status">Publicação enviada. <Link href="/feed" onClick={()=>setNotice(false)}>Ver feed</Link><button aria-label="Fechar confirmação" onClick={()=>setNotice(false)}><X size={17}/></button></div>}</Context.Provider>;

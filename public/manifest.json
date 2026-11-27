@@ -12,5 +12,35 @@
   "icons": [
     { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
     { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ],
+  "shortcuts": [
+    {
+      "name": "Novo Post",
+      "short_name": "Postar",
+      "url": "/feed?compose=1",
+      "description": "Criar uma nova publicação no Teenman",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" }]
+    },
+    {
+      "name": "Explorar & Em Alta",
+      "short_name": "Explorar",
+      "url": "/explore",
+      "description": "Ver pessoas e tópicos em alta",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" }]
+    },
+    {
+      "name": "Músicas & Disco IA",
+      "short_name": "Músicas",
+      "url": "/music",
+      "description": "Ouvir músicas com efeitos visuais da IA",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" }]
+    },
+    {
+      "name": "Salas ao Vivo",
+      "short_name": "Salas",
+      "url": "/rooms",
+      "description": "Entrar nos debates ao vivo",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" }]
+    }
   ]
 }
