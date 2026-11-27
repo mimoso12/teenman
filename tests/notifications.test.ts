@@ -1,0 +1,20 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {sendSocialNotification,removeSocialNotification,loadNotifications,readNotifications,notificationCount,normalizeNotification,notificationHref,notificationTime} from '../lib/notifications';
+const row={id:'notification',user_id:'owner',actor_id:'actor',type:'comment',post_id:'post',content_preview:'Resposta',is_read:false,created_at:'2026-11-27T12:00:00Z'};
+function client(result:any){const calls:any[]=[];const builder:any={};for(const name of ['select','insert','update','delete','eq','is','in','order','range'])builder[name]=(...args:any[])=>{calls.push([name,...args]);return builder;};builder.then=(resolve:any,reject:any)=>Promise.resolve(typeof result==='function'?result():result).then(resolve,reject);return {calls,api:{from:(table:string)=>{calls.push(['from',table]);return builder;}} as any};}
+test('envia os quatro tipos, não envia para si mesmo e preserva prévia limitada',async()=>{
+ const mock=client({error:null});for(const type of ['like','repost','comment','follow'] as const)assert.equal(await sendSocialNotification(mock.api,{userId:'owner',actorId:'actor',type,postId:type==='follow'?null:'post',preview:'x'.repeat(500)}),true);assert.equal(mock.calls.filter(c=>c[0]==='insert').length,4);assert.equal(mock.calls.find(c=>c[0]==='insert')[1].content_preview.length,240);const before=mock.calls.length;assert.equal(await sendSocialNotification(mock.api,{userId:'actor',actorId:'actor',type:'like'}),false);assert.equal(mock.calls.length,before);
+});
+test('fonte de comentário deduplica com trigger e banco legado tem fallback explícito',async()=>{
+ const duplicate=client({error:{code:'23505'}});assert.equal(await sendSocialNotification(duplicate.api,{userId:'owner',actorId:'actor',type:'comment',sourceId:'source'}),true);assert.equal(duplicate.calls.find(c=>c[0]==='insert')[1].source_id,'source');let call=0;const legacy=client(()=>({error:call++===0?{code:'PGRST204'}:null}));assert.equal(await sendSocialNotification(legacy.api,{userId:'owner',actorId:'actor',type:'comment',sourceId:'source'}),true);assert.equal(legacy.calls.filter(c=>c[0]==='insert').length,2);
+});
+test('contagem exata e listagem filtram destinatário, tipo e paginação',async()=>{
+ const mock=client({error:null,count:1254,data:[row,{...row,id:'wrong',user_id:'other'}]});assert.equal(await notificationCount(mock.api,'owner'),1254);assert.ok(mock.calls.some(c=>c[0]==='select'&&c[2]?.head===true));const result=await loadNotifications(mock.api,'owner','comment');assert.deepEqual(result.rows.map(r=>r.id),['notification']);assert.ok(mock.calls.some(c=>c[0]==='eq'&&c[1]==='user_id'&&c[2]==='owner'));assert.ok(mock.calls.some(c=>c[0]==='eq'&&c[1]==='type'&&c[2]==='comment'));assert.ok(mock.calls.some(c=>c[0]==='range'&&c[1]===0&&c[2]===40));
+});
+test('marcar lidas altera somente is_read do próprio usuário e processa lotes',async()=>{
+ const mock=client({error:null});await readNotifications(mock.api,'owner',Array.from({length:205},(_,i)=>String(i)));assert.equal(mock.calls.filter(c=>c[0]==='update').length,3);for(const update of mock.calls.filter(c=>c[0]==='update'))assert.deepEqual(update[1],{is_read:true});assert.equal(mock.calls.filter(c=>c[0]==='in').length,3);assert.ok(mock.calls.some(c=>c[0]==='eq'&&c[1]==='user_id'&&c[2]==='owner'));const all=client({error:null});await readNotifications(all.api,'owner',null);assert.equal(all.calls.filter(c=>c[0]==='in').length,0);
+});
+test('desfazer reação usa ator, destinatário e post; apresentação não aceita tipos desconhecidos',async()=>{
+ const mock=client({error:null});await removeSocialNotification(mock.api,'actor','owner','like','post');for(const field of ['actor_id','user_id','type','post_id'])assert.ok(mock.calls.some(c=>c[0]==='eq'&&c[1]===field));const valid=normalizeNotification(row)!;assert.equal(notificationHref(valid),'/feed?post=post&reply=1');assert.equal(notificationHref({...valid,type:'follow',post_id:null}),'/profile/actor');assert.equal(notificationTime(row.created_at,Date.parse(row.created_at)+120000),'há 2 min');assert.equal(normalizeNotification({...row,type:'<script>'}),null);
+});

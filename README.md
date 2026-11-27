@@ -221,3 +221,11 @@ Ao mudar a direção visual, pausar, desligar efeitos, ocultar a aba ou desmonta
 ### PWA e Android
 
 O manifesto em `/manifest.json` usa o tema preto, modo standalone e início em `/feed`. Ícones 192/512 maskable e Apple 180 acompanham o logotipo existente. O Service Worker é registrado automaticamente nas builds de produção e mantém uma tela offline, sem armazenar conteúdo privado ou interferir no Spotify. Os passos para analisar no PWABuilder, empacotar para Android e configurar os Digital Asset Links reais estão em [docs/pwa-android.md](docs/pwa-android.md).
+
+### Notificações em tempo real
+
+Execute o arquivo completo `supabase/notifications.sql` no SQL Editor do projeto Supabase usado pelo aplicativo (`covuebkkltmteqtopppa`). As tabelas sociais de posts, curtidas, comentários, republicações e seguidores devem existir primeiro. A migração configura índices de deduplicação, acesso restrito por usuário, disparos automáticos e a publicação Realtime; pode ser executada novamente. Duplicatas antigas precisam ser revisadas caso impeçam a criação dos índices únicos.
+
+`/notifications` mostra curtidas, respostas, republicações e seguidores com os perfis reais. A página marca como lidas as notificações exibidas enquanto está visível; o botão de marcar todas inclui as demais. A lista carrega 40 por vez, até 400, e o contador considera todas as não lidas. Um canal global filtrado pelo usuário atualiza o sino e sincroniza novamente ao reconectar, voltar à janela ou recuperar a conexão. Ações no próprio perfil/post não geram notificações. São notificações dentro do aplicativo, sem solicitar permissão de push do sistema.
+
+Os testes incluem uma execução isolada da migração em PostgreSQL via PGlite, verificando disparos, deduplicação e isolamento entre usuários, sem criar dados de teste no Supabase de produção.

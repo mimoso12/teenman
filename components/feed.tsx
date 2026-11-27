@@ -1,4 +1,5 @@
 'use client';
+import {sendSocialNotification,removeSocialNotification} from '../lib/notifications';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { User } from '@supabase/supabase-js';
 import { useRouter,useSearchParams } from 'next/navigation';
@@ -53,9 +54,13 @@ export default function Feed({ initialUser }: { initialUser: User }) {
   const [activeRoom, setActiveRoom] = useState<string | null>(null);
 
   const search = useRef<HTMLInputElement>(null);
+  const focusedPost=params.get('post')||'';
+  useEffect(()=>{if(focusedPost&&params.get('reply')==='1')setCommentPost(focusedPost);},[focusedPost]);
+  useEffect(()=>{if(!focusedPost)return;const frame=requestAnimationFrame(()=>document.getElementById('post-'+focusedPost)?.scrollIntoView({block:'center',behavior:'smooth'}));return()=>cancelAnimationFrame(frame);},[focusedPost,posts.length]);
 
   useEffect(()=>{
     const next=params.get('view')||'home';
+    if(next==='notifications'){router.replace('/notifications');return;}
     setView(['explore','rooms','catalog','notifications'].includes(next)?next as View:'home');
     setTab(next==='following'?'following':next==='latest'?'latest':next==='rooms'?'rooms':next==='catalog'?'catalog':'for-you');
     setQuery(params.get('q')||'');
@@ -68,13 +73,13 @@ export default function Feed({ initialUser }: { initialUser: User }) {
     if (!supabase) return;
     const version=++loadVersion.current;
     try {
-      const data=await loadPersonalizedFeed(supabase,initialUser.id);if(version!==loadVersion.current)return;
+      const data=await loadPersonalizedFeed(supabase,initialUser.id,focusedPost);if(version!==loadVersion.current)return;
       setPosts(data.posts);setFollowing(data.following);setFollowingReposts(data.followingReposts);setInteractedPosts(data.interactedPosts);setLikes(data.likes);setComments(data.comments);setSocialReady(data.socialReady);setRankTime(Date.now());
       if(data.unavailable.length)setMessage('Alguns dados estão indisponíveis: '+data.unavailable.join(', ')+'. As publicações continuam disponíveis.');
       const profiles=await loadPostAuthors(supabase,[...data.posts.map(post=>post.author_id),...data.followingReposts.map(row=>row.user_id),initialUser.id]);if(version===loadVersion.current)setAuthors(profiles);
     } catch { setMessage('Sem conexão. Tente atualizar o feed.'); }
     finally { if(version===loadVersion.current)setLoading(false); }
-  }, [initialUser.id]);
+  }, [initialUser.id,focusedPost]);
   useEffect(() => {
     if (!supabase) { router.replace('/'); return; }
     const { data } = supabase.auth.onAuthStateChange((event, session) => {
@@ -113,15 +118,18 @@ export default function Feed({ initialUser }: { initialUser: User }) {
         if (!window.confirm('Excluir esta publicação?')) return;
         ({ error } = await supabase.from('posts').delete().eq('id', post.id).eq('author_id', user.id));
       } else if (kind === 'comment') {
-        ({ error } = await supabase.from('post_comments').insert({ post_id: post.id, author_id: user.id, author_name: displayName, content: comment.trim() }));
-        if (!error) setComment('');
+        const replyId=crypto.randomUUID();
+        ({ error } = await supabase.from('post_comments').insert({ id:replyId,post_id: post.id, author_id: user.id, author_name: displayName, content: comment.trim() }));
+        if (!error){void sendSocialNotification(supabase,{userId:post.author_id,actorId:user.id,type:'comment',postId:post.id,preview:comment.trim(),sourceId:replyId});setComment('');}
       } else if (kind === 'follow') {
         const exists = following.includes(post.author_id);
         ({ error } = exists ? await supabase.from('follows').delete().eq('follower_id', user.id).eq('following_id', post.author_id) : await supabase.from('follows').insert({ follower_id: user.id, following_id: post.author_id }));
+        if(!error){if(exists)void removeSocialNotification(supabase,user.id,post.author_id,'follow');else void sendSocialNotification(supabase,{userId:post.author_id,actorId:user.id,type:'follow'});}
       } else {
         const table = 'post_likes';
         const exists = likes.some(row => row.post_id === post.id && row.user_id === user.id);
         ({ error } = exists ? await supabase.from(table).delete().eq('post_id', post.id).eq('user_id', user.id) : await supabase.from(table).insert({ post_id: post.id, user_id: user.id, author_name: displayName }));
+        if(!error){if(exists)void removeSocialNotification(supabase,user.id,post.author_id,'like',post.id);else void sendSocialNotification(supabase,{userId:post.author_id,actorId:user.id,type:'like',postId:post.id,preview:post.content});}
       }
       if (error) setMessage('Não foi possível concluir. Tente novamente.');
       else await loadPosts();
@@ -157,8 +165,6 @@ export default function Feed({ initialUser }: { initialUser: User }) {
     return (post.content+' '+post.author_name).toLocaleLowerCase('pt-BR').includes(query.trim().toLocaleLowerCase('pt-BR'));
   });
   const topics = [...posts.reduce((map, post) => { for (const tag of new Set(post.content.match(/#[\p{L}\p{N}_]+/gu) || [])) map.set(tag, (map.get(tag) || 0) + 1); return map; }, new Map<string, number>())].sort((a, b) => b[1] - a[1]).slice(0, 3);
-  const ownIds = new Set(posts.filter(post => post.author_id === user.id).map(post => post.id));
-  const notifications = [...likes.filter(row => ownIds.has(row.post_id) && row.user_id !== user.id).map(row => ({ ...row, label: 'curtiu sua publicação', key: `like-${row.post_id}-${row.user_id}` })), ...comments.filter(row => ownIds.has(row.post_id) && row.author_id !== user.id).map(row => ({ ...row, label: 'comentou na sua publicação', key: row.id }))].sort((a, b) => b.created_at.localeCompare(a.created_at));
   const showPosts = !['rooms', 'notifications', 'catalog'].includes(view);
 
   return <>
@@ -173,7 +179,6 @@ export default function Feed({ initialUser }: { initialUser: User }) {
       {showPosts && <button className="show-posts" onClick={() => { setLoading(true); setMessage(''); void loadPosts(); }} disabled={loading}><RefreshCw size={14}/>{loading ? 'Carregando publicações…' : 'Atualizar publicações'}</button>}
       {view === 'catalog' && <MovieCatalog user={user}/>}
       {view === 'rooms' && <Rooms user={user} activeRoom={activeRoom} setActiveRoom={setActiveRoom} onRooms={setRooms}/>}
-      {view === 'notifications' && <section className="social-notifications">{!socialReady ? <div className="social-empty"><Bell/><h2>Seu espaço de novidades.</h2><p>As interações estarão disponíveis após a atualização do banco.</p></div> : notifications.length === 0 ? <div className="social-empty"><Bell/><h2>Tudo em dia por aqui.</h2><p>Quando alguém curtir ou comentar nas suas publicações, você verá aqui.</p></div> : notifications.map(item => <button key={item.key} className="notification-row" onClick={() => { setView('home'); setTab('for-you'); setQuery(posts.find(post => post.id === item.post_id)?.content.slice(0, 35) || ''); }}><Bell size={21}/><span><strong>{item.author_name}</strong> {item.label}.<small>{new Date(item.created_at).toLocaleString('pt-BR')}</small></span></button>)}</section>}
       {republications.error&&<div className="social-message" role="status">{republications.error}<button onClick={republications.retry}>Tentar novamente</button></div>}
       {showPosts && !loading && visiblePosts.length === 0 && <div className="social-empty"><Clapperboard/><h2>{query ? 'Nenhum resultado por aqui.' : tab === 'following' && view === 'home' ? 'Sua próxima conexão começa aqui.' : 'Toda conversa tem um começo.'}</h2><p>{query ? 'Tente outro nome ou assunto.' : tab === 'following' && view === 'home' ? 'Siga pessoas pelo menu de cada publicação para acompanhar suas histórias.' : view === 'catalog' ? 'Compartilhe filmes, livros e trailers para começar o catálogo da comunidade.' : 'Compartilhe uma ideia, um filme ou uma história com a comunidade.'}</p></div>}
       {showPosts && visiblePosts.map(post => {
@@ -183,7 +188,7 @@ export default function Feed({ initialUser }: { initialUser: User }) {
         const liked = likes.some(row => row.post_id === post.id && row.user_id === user.id);
         const reposted = reposts.some(row => row.post_id === post.id && row.user_id === user.id);
         const postComments = comments.filter(row => row.post_id === post.id);
-        return <article key={post.id} className="social-post"><Link href={`/profile/${post.author_id}`} aria-label={`Perfil de ${authorName}`}><Avatar name={authorName} url={author?.avatar}/></Link><div className="social-post-body">{sharedBy&&<div className="profile-repost-label"><Repeat2 size={14}/>Republicado por <Link href={'/profile/'+sharedBy}>{authors[sharedBy]?.name||'uma pessoa que você segue'}</Link></div>}{algorithmActive&&post.author_id!==user.id&&recommendation&&(recommendation.affinityLabel?<small className="feed-recommendation">✨ Recomendado para você · {recommendation.affinityLabel}</small>:recommendation.trending?<small className="feed-recommendation">🔥 Em alta no feed</small>:null)}<div className="social-post-heading"><strong><Link href={`/profile/${post.author_id}`}>{authorName}</Link></strong><span className="post-handle">{authorHandle}</span><span className="post-date">· {new Date(post.created_at).toLocaleDateString('pt-BR', { day: 'numeric', month: 'short', timeZone: 'America/Sao_Paulo' })}</span><details className="post-menu"><summary aria-label={`Opções da publicação de ${post.author_name}`}><MoreHorizontal size={20}/></summary><div>{post.author_id === user.id ? <button disabled={Boolean(action)} onClick={() => void interact(post, 'delete')}>Excluir publicação</button> : <button disabled={Boolean(action)} onClick={() => void interact(post, 'follow')}>{following.includes(post.author_id) ? 'Deixar de seguir' : 'Seguir autor'}</button>}</div></details></div>{category&&<span className="post-category-badge">{category.label}</span>}{parsed.text && <p className="social-post-text">{parsed.text}</p>}{parsed.media && <PostMedia key={parsed.media.url} media={parsed.media}/>}
+        return <article key={post.id} id={'post-'+post.id} className={'social-post'+(post.id===focusedPost?' notification-focused-post':'')}><Link href={`/profile/${post.author_id}`} aria-label={`Perfil de ${authorName}`}><Avatar name={authorName} url={author?.avatar}/></Link><div className="social-post-body">{sharedBy&&<div className="profile-repost-label"><Repeat2 size={14}/>Republicado por <Link href={'/profile/'+sharedBy}>{authors[sharedBy]?.name||'uma pessoa que você segue'}</Link></div>}{algorithmActive&&post.author_id!==user.id&&recommendation&&(recommendation.affinityLabel?<small className="feed-recommendation">✨ Recomendado para você · {recommendation.affinityLabel}</small>:recommendation.trending?<small className="feed-recommendation">🔥 Em alta no feed</small>:null)}<div className="social-post-heading"><strong><Link href={`/profile/${post.author_id}`}>{authorName}</Link></strong><span className="post-handle">{authorHandle}</span><span className="post-date">· {new Date(post.created_at).toLocaleDateString('pt-BR', { day: 'numeric', month: 'short', timeZone: 'America/Sao_Paulo' })}</span><details className="post-menu"><summary aria-label={`Opções da publicação de ${post.author_name}`}><MoreHorizontal size={20}/></summary><div>{post.author_id === user.id ? <button disabled={Boolean(action)} onClick={() => void interact(post, 'delete')}>Excluir publicação</button> : <button disabled={Boolean(action)} onClick={() => void interact(post, 'follow')}>{following.includes(post.author_id) ? 'Deixar de seguir' : 'Seguir autor'}</button>}</div></details></div>{category&&<span className="post-category-badge">{category.label}</span>}{parsed.text && <p className="social-post-text">{parsed.text}</p>}{parsed.media && <PostMedia key={parsed.media.url} media={parsed.media}/>}
           <div className="post-actions"><button aria-label={`Comentar publicação de ${post.author_name}`} aria-expanded={commentPost === post.id} onClick={() => { setCommentPost(current => current === post.id ? null : post.id); setComment(''); }}><MessageCircle size={19}/><span>{postComments.length || ''}</span></button><RepostButton count={reposts.filter(row=>row.post_id===post.id).length} active={reposted} disabled={republications.loading||Boolean(republications.busy)||Boolean(republications.error)} onClick={()=>void republications.toggle(post.id)}/><button className={liked ? 'liked' : ''} aria-label="Curtir" aria-pressed={liked} disabled={Boolean(action)} onClick={() => void interact(post, 'like')}><Heart size={19} fill={liked ? 'currentColor' : 'none'}/><span>{likes.filter(row => row.post_id === post.id).length || ''}</span></button><button aria-label="Copiar publicação" onClick={async () => { try { await navigator.clipboard.writeText(post.content); setMessage('Publicação copiada.'); } catch { setMessage('Não foi possível copiar a publicação.'); } }}><Send size={17}/></button></div>
           {commentPost === post.id && <div className="comments"><h3>Conversa</h3>{postComments.map(item => <div key={item.id} className="comment-row"><strong>{item.author_name}</strong><p>{item.content}</p></div>)}{!socialReady ? <p className="muted">Os comentários precisam da atualização do banco.</p> : <form onSubmit={e => { e.preventDefault(); void interact(post, 'comment'); }}><label className="sr-only" htmlFor={`comment-${post.id}`}>Sua resposta</label><input id={`comment-${post.id}`} placeholder="Escreva uma resposta" value={comment} onChange={e => setComment(e.target.value)} maxLength={500} required/><button className="pill solid" disabled={Boolean(action) || !comment.trim()}>Responder</button></form>}</div>}
         </div></article>;

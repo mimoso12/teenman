@@ -1,4 +1,5 @@
 'use client';
+import {sendSocialNotification,removeSocialNotification} from '../lib/notifications';
 import { useCallback,useEffect,useState } from 'react';
 import Link from 'next/link';
 import { ArrowLeft,BriefcaseBusiness,CalendarDays,Disc3,Play,Heart,MessageCircle,Repeat2 } from 'lucide-react';
@@ -83,7 +84,7 @@ export default function ProfileScreen({initialProfile,viewerId}:{initialProfile:
     if(!supabase||!userId||followBusy)return;setFollowBusy(true);setNotice('');
     try{
       const result=following?await supabase.from('follows').delete().eq('follower_id',userId).eq('following_id',profile.id):await supabase.from('follows').insert({follower_id:userId,following_id:profile.id});
-      if(result.error)throw result.error;setFollowing(!following);await loadCounts();
+      if(result.error)throw result.error;if(following)void removeSocialNotification(supabase,userId,profile.id,'follow');else void sendSocialNotification(supabase,{userId:profile.id,actorId:userId,type:'follow'});setFollowing(!following);await loadCounts();
     }catch{setNotice('Não foi possível atualizar sua conexão. Tente novamente.');}finally{setFollowBusy(false);}
   }
   const avatar=profileImage(profile.avatar_url),banner=profileImage(profile.banner_url);

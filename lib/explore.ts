@@ -1,3 +1,4 @@
+import {sendSocialNotification,removeSocialNotification} from './notifications';
 import type {SupabaseClient} from '@supabase/supabase-js';
 import {profileImage} from './profile';
 import {userHandle} from './post-media';
@@ -33,4 +34,4 @@ export function buildExploreTopics(posts:FeedPost[]):ExploreTopic[]{const topics
  }
  return [...topics.values()].filter(t=>t.kind!=='word'||t.count>=2).sort((a,b)=>b.count-a.count||a.name.localeCompare(b.name,'pt-BR')).slice(0,24);
 }
-export async function saveExploreFollow(client:SupabaseClient,userId:string,targetId:string,following:boolean){if(userId===targetId)throw new Error('Este é o seu perfil.');const auth=await client.auth.getUser();if(auth.data.user?.id!==userId)throw new Error('Entre novamente para seguir pessoas.');const result=following?await client.from('follows').insert({follower_id:userId,following_id:targetId}):await client.from('follows').delete().eq('follower_id',userId).eq('following_id',targetId);if(result.error&&!(following&&result.error.code==='23505'))throw result.error;}
+export async function saveExploreFollow(client:SupabaseClient,userId:string,targetId:string,following:boolean){if(userId===targetId)throw new Error('Este é o seu perfil.');const auth=await client.auth.getUser();if(auth.data.user?.id!==userId)throw new Error('Entre novamente para seguir pessoas.');const result=following?await client.from('follows').insert({follower_id:userId,following_id:targetId}):await client.from('follows').delete().eq('follower_id',userId).eq('following_id',targetId);if(result.error&&!(following&&result.error.code==='23505'))throw result.error;if(!result.error){if(following)void sendSocialNotification(client,{userId:targetId,actorId:userId,type:'follow'});else void removeSocialNotification(client,userId,targetId,'follow');}}

@@ -36,6 +36,9 @@ importers:
         specifier: latest
         version: 19.3.1(react@19.3.1)
     devDependencies:
+      '@electric-sql/pglite':
+        specifier: ^0.6.0
+        version: 0.6.0
       '@types/node':
         specifier: latest
         version: 26.6.6
@@ -50,6 +53,9 @@ importers:
         version: 7.0.2
 
 packages:
+
+  '@electric-sql/pglite@0.6.0':
+    resolution: {integrity: sha512-g3tAPFjRLEdN1g5FvawTl4ETo9LtmVwBRUJYnH6Erl6mhlKFRGB2mYhPABffIuXMYxki64mX0Al8U4UFUhuYDQ==}
 
   '@emnapi/runtime@1.11.3':
     resolution: {integrity: sha512-Xz4Tpyki7XyrpbUK1jR1AhdAdaXyhhY4lZ3neLodmhpuWfy2PAQN5B46sAiU4liOXGLkHypn/qU+jvfWSCYYLA==}
@@ -601,6 +607,8 @@ packages:
     engines: {node: '>=16.0.0'}
 
 snapshots:
+
+  '@electric-sql/pglite@0.6.0': {}
 
   '@emnapi/runtime@1.11.3':
     dependencies:

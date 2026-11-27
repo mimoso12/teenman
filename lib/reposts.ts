@@ -1,3 +1,4 @@
+import {notifyRepost} from './notifications';
 import type {SupabaseClient} from '@supabase/supabase-js';
 import type {FeedPost} from './post-composer';
 export type Repost={post_id:string;user_id:string;created_at:string};
@@ -17,6 +18,7 @@ export async function setRepost(client:SupabaseClient,postId:string,userId:strin
  const auth=await client.auth.getUser();if(auth.data.user?.id!==userId)throw new Error('Entre novamente para republicar.');
  const result=enabled?await client.from('reposts').insert({post_id:postId,user_id:userId}):await client.from('reposts').delete().eq('post_id',postId).eq('user_id',userId);
  if(result.error&&!(enabled&&result.error.code==='23505'))throw new Error('Não foi possível atualizar a republicação. Tente novamente.');
+ if(!result.error)void notifyRepost(client,postId,userId,enabled);
 }
 export async function loadProfileTimeline(client:SupabaseClient,profileId:string,onlyReposts=false):Promise<TimelinePost[]>{
  const [own,result]=await Promise.all([onlyReposts?Promise.resolve({data:[],error:null}):client.from('posts').select('*').eq('author_id',profileId).order('created_at',{ascending:false}).limit(100),client.from('reposts').select('post_id,user_id,created_at').eq('user_id',profileId).order('created_at',{ascending:false}).limit(100)]);
