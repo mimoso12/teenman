@@ -243,3 +243,7 @@ O botão de ativação em `/notifications` registra cada dispositivo com consent
 O visual local aparece assim que uma faixa é selecionada, varia pela assinatura de música/artista e não desaparece durante buffering. A API retorna `fromAi`; somente resultados reais da IA são cacheados em `music_vibe_v11_...`. Fallbacks não ficam presos no cache. A análise tem orçamento total de cinco segundos. Em redução de movimento, o Canvas mostra uma cena estática.
 
 `+ Fila` adiciona músicas sem iniciar a reprodução. A fila global acompanha a navegação e oferece Próxima, pular, remover e limpar. O controlador Spotify permanece montado e o avanço automático depende dos eventos de fim disponibilizados pelo player oficial. Bloqueios do Spotify/autoplay ou player simples podem exigir avanço manual. Implementação, limites e validações em [docs/music-v11-queue.md](docs/music-v11-queue.md).
+
+### Denúncias e banimento
+
+O menu dos posts e o cabeçalho das salas têm Denunciar, com motivo salvo em `reports` e acesso privado por denunciante. `profiles.is_banned` bloqueia publicações e participação nas salas, com verificação no cliente, na emissão do token LiveKit e por políticas restritivas no Supabase. Execute `supabase/moderation.sql` no projeto correto para ativar. Nenhuma página administrativa foi criada; detalhes em [docs/moderation.md](docs/moderation.md).

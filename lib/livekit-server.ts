@@ -1,6 +1,7 @@
 import {AccessToken} from 'livekit-server-sdk';
 import type {SupabaseClient, User} from '@supabase/supabase-js';
 import {profileImage} from './profile';
+import {assertNotBanned,bannedMessage} from './moderation';
 
 export class LiveTokenError extends Error {
   constructor(public status: number, message: string) {super(message);}
@@ -15,6 +16,7 @@ export function livekitConfig() {
 export async function createLiveToken(client: SupabaseClient, user: User, roomId: unknown, config = livekitConfig()) {
   if (typeof roomId !== 'string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(roomId)) throw new LiveTokenError(400, 'Escolha uma sala válida.');
   if (!config) throw new LiveTokenError(503, 'O palco ao vivo ainda não foi configurado. O chat continua disponível.');
+  try {await assertNotBanned(client,user.id);} catch(error) {throw new LiveTokenError(error instanceof Error&&error.message===bannedMessage?403:503,error instanceof Error?error.message:'Não foi possível verificar sua conta.');}
   // Uses the caller's RLS permissions. A client-supplied isHost never grants access.
   const room = await client.from('rooms').select('id,name,created_by').eq('id', roomId).maybeSingle();
   if (room.error) throw new LiveTokenError(503, 'Não foi possível verificar esta sala. Tente novamente.');

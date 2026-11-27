@@ -21,9 +21,9 @@ test('consulta secundária encontra avatar, nome e username sem depender da FK o
  const selects:string[]=[];const client={from:()=>({select:(columns:string)=>({in:async(_key:string,ids:string[])=>{selects.push(columns);assert.deepEqual(ids,['u1']);return columns.includes('full_name')?{error:{code:'42703'}}:{data:[{id:'u1',display_name:'Nome atualizado',avatar_url:'https://example.com/avatar.jpg',username:'nome'}]};}})})} as unknown as SupabaseClient;
  const authors=await loadPostAuthors(client,['u1','u1']);assert.equal(selects.length,2);assert.equal(authors.u1.name,'Nome atualizado');assert.equal(authors.u1.avatar,'https://example.com/avatar.jpg');assert.equal(authors.u1.username,'nome');
 });
-function fakeClient(){
+function fakeClient(banned=false){
  let row:FeedPost|null=null,fail=false;const calls={uploads:0,inserts:0};
- const client={auth:{getUser:async()=>({data:{user:{id:'owner',user_metadata:{display_name:'Nome do token'}}}})},from:()=>({select:()=>({eq:()=>({eq:()=>({maybeSingle:async()=>({data:row,error:null})})})}),insert:(value:FeedPost)=>({select:()=>({single:async()=>{calls.inserts++;if(fail)return {error:{message:'network'}};row={...value,created_at:'2026-11-25T00:00:00Z'};return {data:row};}})})}),storage:{from:(bucket:string)=>({upload:async(path:string,_file:File,options:any)=>{assert.equal(bucket,'post-media');assert.match(path,/^owner\/.+\.png$/);assert.equal(options.upsert,false);calls.uploads++;return {error:null};},getPublicUrl:(path:string)=>({data:{publicUrl:'https://example.com/'+path}})})}} as unknown as SupabaseClient;
+ const client={auth:{getUser:async()=>({data:{user:{id:'owner',user_metadata:{display_name:'Nome do token'}}}})},from:(table:string)=>table==='profiles'?{select:()=>({eq:()=>({maybeSingle:async()=>({data:{is_banned:banned},error:null})})})}:({select:()=>({eq:()=>({eq:()=>({maybeSingle:async()=>({data:row,error:null})})})}),insert:(value:FeedPost)=>({select:()=>({single:async()=>{calls.inserts++;if(fail)return {error:{message:'network'}};row={...value,created_at:'2026-11-25T00:00:00Z'};return {data:row};}})})}),storage:{from:(bucket:string)=>({upload:async(path:string,_file:File,options:any)=>{assert.equal(bucket,'post-media');assert.match(path,/^owner\/.+\.png$/);assert.equal(options.upsert,false);calls.uploads++;return {error:null};},getPublicUrl:(path:string)=>({data:{publicUrl:'https://example.com/'+path}})})}} as unknown as SupabaseClient;
  return {client,calls,setFail:(value:boolean)=>fail=value};
 }
 test('publicação com mídia salva URL/tipo/etiqueta e usa o nome autenticado exigido pelo RLS',async()=>{
@@ -37,4 +37,8 @@ test('erro no insert mantém mídia já enviada para a próxima tentativa',async
 });
 test('publicação vazia ou longa é bloqueada antes de qualquer upload',async()=>{
  const {client,calls}=fakeClient();for(const text of ['','a'.repeat(501)])await assert.rejects(()=>publishComposedPost(client,{text,category:'general',file:null,attempt:{id:'x'}}));assert.deepEqual(calls,{uploads:0,inserts:0});
+});
+
+test('conta banida não publica nem envia mídia ao Storage',async()=>{
+ const {client,calls}=fakeClient(true);await assert.rejects(()=>publishComposedPost(client,{text:'Teste',category:'general',file:png(),attempt:{id:'post-id'}}),/impedida/);assert.deepEqual(calls,{uploads:0,inserts:0});
 });

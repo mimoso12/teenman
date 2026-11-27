@@ -1,6 +1,7 @@
 import type {SupabaseClient} from '@supabase/supabase-js';
 import {profileImage} from './profile';
 import {splitPost,type Media} from './post-media';
+import {assertNotBanned} from './moderation';
 export const postCategories=[{id:'general',label:'Geral'},{id:'cinema',label:'🎬 Cinema & Séries'},{id:'music',label:'🎵 Música'},{id:'games',label:'🎮 Games'},{id:'books',label:'📚 Livros'},{id:'sports',label:'⚽ Esportes'},{id:'civic',label:'🏛️ Debate Cívico'}] as const;
 export type PostCategory=typeof postCategories[number]['id'];
 export type PostAuthor={id:string;name:string;username:string|null;avatar:string|null};
@@ -30,6 +31,7 @@ export async function publishComposedPost(client:SupabaseClient,input:{text:stri
  const text=input.text.trim();if(characterCount(input.text)>500||(!text&&!input.file))throw new Error('Escreva até 500 caracteres ou anexe uma mídia.');
  if(!postCategories.some(c=>c.id===input.category))throw new Error('Categoria inválida.');
  const auth=await client.auth.getUser(),user=auth.data.user;if(!user)throw new Error('Entre novamente para publicar.');
+ await assertNotBanned(client,user.id);
  const existing=await client.from('posts').select('*').eq('id',input.attempt.id).eq('author_id',user.id).maybeSingle();if(existing.data)return existing.data as FeedPost;if(existing.error)throw new Error('Não foi possível confirmar a publicação. Seu rascunho foi mantido.');
  let media=input.file&&input.attempt.uploaded?.file===input.file?input.attempt.uploaded:null;
  if(input.file&&!media){
