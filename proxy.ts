@@ -5,7 +5,7 @@ export async function proxy(request: NextRequest) {
   const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
   let response = NextResponse.next({ request });
   response.headers.set('Cache-Control', 'private, no-store');
-  const protectedRoute = request.nextUrl.pathname.startsWith('/feed') || request.nextUrl.pathname === '/profile' || request.nextUrl.pathname === '/music' || request.nextUrl.pathname === '/civic' || request.nextUrl.pathname === '/games' || ['/books','/sports','/news','/explore','/notifications'].includes(request.nextUrl.pathname);
+  const protectedRoute = request.nextUrl.pathname.startsWith('/feed') || request.nextUrl.pathname === '/profile' || request.nextUrl.pathname === '/music' || request.nextUrl.pathname === '/civic' || request.nextUrl.pathname === '/games' || ['/books','/sports','/news','/explore','/notifications','/rooms'].includes(request.nextUrl.pathname);
   if (!url || !key) return protectedRoute ? NextResponse.redirect(new URL('/', request.url)) : response;
   const client = createServerClient(url, key, { cookies: {
     getAll: () => request.cookies.getAll(),
@@ -31,4 +31,4 @@ export async function proxy(request: NextRequest) {
   }
   return response;
 }
-export const config = { matcher: ['/', '/feed/:path*', '/profile/:path*', '/music', '/civic', '/games', '/books', '/sports', '/news', '/explore', '/notifications', '/api/spotify/:path*', '/auth/callback'] };
+export const config = { matcher: ['/', '/feed/:path*', '/profile/:path*', '/music', '/civic', '/games', '/books', '/sports', '/news', '/explore', '/notifications', '/rooms', '/api/spotify/:path*', '/auth/callback'] };

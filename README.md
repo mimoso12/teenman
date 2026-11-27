@@ -233,3 +233,7 @@ Os testes incluem uma execução isolada da migração em PostgreSQL via PGlite,
 ### Push nativo no PWA
 
 O botão de ativação em `/notifications` registra cada dispositivo com consentimento explícito. O Service Worker recebe os alertas e abre a publicação/perfil correspondente, preservando o player quando já existe uma aba do aplicativo. O envio usa `web-push`, VAPID, inscrições protegidas por RLS e claims por dispositivo para evitar duplicatas. Para ativar em produção, configure as variáveis da Vercel, execute `supabase/push-subscriptions.sql` depois de `notifications.sql` e configure o webhook INSERT. Os passos completos estão em [docs/web-push.md](docs/web-push.md).
+
+### Voz, vídeo e tela nas salas
+
+`/rooms` abre as salas com chat Supabase e palco LiveKit. A entrada exige sessão e uma sala acessível pela RLS; o token restringe a identidade e a sala, sem confiar em privilégios enviados pelo cliente. Microfone/câmera/tela iniciam desligados. Ao sair ou navegar, a chamada é desconectada e o player global continua montado. Configure as quatro variáveis LiveKit também na Vercel; detalhes e roteiro de teste entre dispositivos em [docs/livekit.md](docs/livekit.md).
