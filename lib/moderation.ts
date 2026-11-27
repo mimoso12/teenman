@@ -1,9 +1,13 @@
 import type {SupabaseClient} from '@supabase/supabase-js';
 export const bannedMessage = 'Sua conta está impedida de publicar e participar das salas.';
+export async function readBanStatus(client: SupabaseClient, userId: string): Promise<boolean> {
+  try {
+    const result = await client.from('profiles').select('is_banned').eq('id', userId).maybeSingle();
+    return !result.error && result.data?.is_banned === true;
+  } catch {return false;}
+}
 export async function assertNotBanned(client: SupabaseClient, userId: string) {
-  const result = await client.from('profiles').select('is_banned').eq('id', userId).maybeSingle();
-  if (result.error) throw new Error('Não foi possível verificar as permissões da conta. Tente novamente.');
-  if (result.data?.is_banned === true) throw new Error(bannedMessage);
+  if (await readBanStatus(client, userId)) throw new Error(bannedMessage);
 }
 export type ReportTarget = 'post' | 'room';
 export async function submitReport(client: SupabaseClient, input: {id: string; targetType: ReportTarget; targetId: string; reason: string}) {

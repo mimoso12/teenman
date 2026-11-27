@@ -5,11 +5,12 @@ import {PGlite} from '@electric-sql/pglite';
 import {assertNotBanned, bannedMessage, submitReport} from '../lib/moderation';
 import {createLiveToken} from '../lib/livekit-server';
 const owner='10000000-0000-4000-8000-000000000001',other='10000000-0000-4000-8000-000000000002',post='20000000-0000-4000-8000-000000000001',room='30000000-0000-4000-8000-000000000001';
-test('banimento bloqueia a emissão do token LiveKit e falha de consulta não libera acesso',async()=>{
+test('somente banimento booleano confirmado bloqueia; falha de consulta assume false',async()=>{
  const client=(result:any)=>({from:()=>({select:()=>({eq:()=>({maybeSingle:async()=>result})})})}) as any;
  await assert.rejects(()=>assertNotBanned(client({data:{is_banned:true}}),owner),new RegExp(bannedMessage));
- await assert.rejects(()=>assertNotBanned(client({error:{code:'42703'}}),owner),/verificar/);
- await assert.doesNotReject(()=>assertNotBanned(client({data:{is_banned:false}}),owner));
+ for(const result of [{error:{code:'42703'}},{error:{code:'network'}},{data:null},{data:{}},{data:{is_banned:false}},{data:{is_banned:null}},{data:{is_banned:'true'}}])await assert.doesNotReject(()=>assertNotBanned(client(result),owner));
+ const offline={from:()=>{throw new Error('offline');}} as any;
+ await assert.doesNotReject(()=>assertNotBanned(offline,owner));
  await assert.rejects(()=>createLiveToken(client({data:{is_banned:true}}),{id:owner} as any,room,{serverUrl:'wss://example.livekit.cloud',apiKey:'test',apiSecret:'test-only-secret'}),(error:any)=>error.status===403);
 });
 test('denúncia usa o autor autenticado e não inclui status controlado pelo usuário',async()=>{
