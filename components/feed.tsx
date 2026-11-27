@@ -6,6 +6,7 @@ import { useRouter,useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Bell, BookOpen, Clapperboard, Heart, Home, MessageCircle, MoreHorizontal, Radio, Repeat2, Search, Send, UserRound, X, RefreshCw } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import {disableDevicePush} from '../lib/push-device';
 import { splitPost, userHandle } from '../lib/post-media';
 import {loadPostAuthors,postPresentation,postCategories,type FeedPost as Post,type PostAuthor} from '../lib/post-composer';
 import Avatar from './post-avatar';
@@ -140,6 +141,7 @@ export default function Feed({ initialUser }: { initialUser: User }) {
     if (!supabase || leaving) return;
     setLeaving(true); setMessage('');
     try {
+      await disableDevicePush();
       const { error } = await supabase.auth.signOut();
       if (error) { setMessage('Não foi possível sair. Tente novamente.'); return; }
       router.replace('/');

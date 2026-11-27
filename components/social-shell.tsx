@@ -5,6 +5,7 @@ import { usePathname,useRouter,useSearchParams } from 'next/navigation';
 import type { User } from '@supabase/supabase-js';
 import { Bell,BookOpen,Clapperboard,Gamepad2,Home,Landmark,LogOut,Music2,Newspaper,Radio,Search,Send,Trophy,UserRound } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import {disableDevicePush} from '../lib/push-device';
 import { useMusic } from './music-provider';
 import { userHandle } from '../lib/post-media';
 import { profileImage } from '../lib/profile';
@@ -20,7 +21,7 @@ export default function SocialShell({children,initialUser}:{children:ReactNode;i
   const name=profile?.display_name||String(user?.user_metadata?.display_name||'Visitante');
   const handle=profile?.username?`@${profile.username}`:user?userHandle(name,user.id):'Entre na comunidade';
   const selected=['/books','/sports','/news','/explore','/notifications'].includes(pathname)?pathname.slice(1):pathname==='/games'?'games':pathname==='/civic'?'civic':pathname==='/music'?'music':pathname.startsWith('/profile')?'profile':['following','latest'].includes(params.get('view')||'')?'home':params.get('view')||'home';
-  async function logout(){if(!supabase)return;setLeaving(true);setMessage('');try{const {error}=await supabase.auth.signOut();if(error)setMessage('Não foi possível sair. Tente novamente.');else{router.replace('/');}}catch{setMessage('Falha de conexão ao sair.');}finally{setLeaving(false);}}
+  async function logout(){if(!supabase)return;setLeaving(true);setMessage('');try{await disableDevicePush();const {error}=await supabase.auth.signOut();if(error)setMessage('Não foi possível sair. Tente novamente.');else{router.replace('/');}}catch{setMessage('Não foi possível concluir a saída e desativar as notificações. Tente novamente.');}finally{setLeaving(false);}}
   function search(event:FormEvent){event.preventDefault();router.push(`/explore?q=${encodeURIComponent(query.trim())}`);}
   return <PostComposerProvider user={user}><div className="social-shell">
     <aside className="social-sidebar"><Link className="social-logo" href={user?'/feed':'/'} aria-label="Teenman início"><svg viewBox="0 0 32 36" aria-hidden="true"><path d="M3 3h26l-3 7h-7v23h-6V10H6Z" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round"/></svg></Link><nav aria-label="Navegação principal">{links.map(({href,name,icon:Icon,view})=><Link key={view} href={href} className={selected===view?'active':''} aria-label={view==='notifications'&&notifications.unread?`${name}, ${notifications.unread} não lidas`:name} aria-current={selected===view?'page':undefined}><span className="nav-icon"><Icon size={27} strokeWidth={1.8}/>{view==='notifications'&&<NotificationBadge count={notifications.unread}/>}</span><span className="nav-label">{name}</span></Link>)}</nav><GlobalPostButton/><div className="social-account"><span className="avatar">{profileImage(profile?.avatar_url)?<img src={profileImage(profile?.avatar_url)!} alt=""/>:name.slice(0,1).toUpperCase()}</span><div><strong>{name}</strong><span>{handle}</span></div>{user?<button aria-label="Sair da conta" title="Sair" onClick={logout} disabled={leaving}><LogOut size={20}/></button>:<Link href="/" aria-label="Entrar"><LogOut size={20}/></Link>}</div>{message&&<small role="status">{message}</small>}</aside>

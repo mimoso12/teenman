@@ -17,13 +17,15 @@
     "lucide-react": "^1.78.0",
     "next": "latest",
     "react": "latest",
-    "react-dom": "latest"
+    "react-dom": "latest",
+    "web-push": "^4.0.0"
   },
   "devDependencies": {
     "@electric-sql/pglite": "^0.6.0",
     "@types/node": "latest",
     "@types/react": "latest",
     "@types/react-dom": "latest",
+    "@types/web-push": "^3.6.4",
     "typescript": "latest"
   }
 }

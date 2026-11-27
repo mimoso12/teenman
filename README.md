@@ -229,3 +229,7 @@ Execute o arquivo completo `supabase/notifications.sql` no SQL Editor do projeto
 `/notifications` mostra curtidas, respostas, republicações e seguidores com os perfis reais. A página marca como lidas as notificações exibidas enquanto está visível; o botão de marcar todas inclui as demais. A lista carrega 40 por vez, até 400, e o contador considera todas as não lidas. Um canal global filtrado pelo usuário atualiza o sino e sincroniza novamente ao reconectar, voltar à janela ou recuperar a conexão. Ações no próprio perfil/post não geram notificações. São notificações dentro do aplicativo, sem solicitar permissão de push do sistema.
 
 Os testes incluem uma execução isolada da migração em PostgreSQL via PGlite, verificando disparos, deduplicação e isolamento entre usuários, sem criar dados de teste no Supabase de produção.
+
+### Push nativo no PWA
+
+O botão de ativação em `/notifications` registra cada dispositivo com consentimento explícito. O Service Worker recebe os alertas e abre a publicação/perfil correspondente, preservando o player quando já existe uma aba do aplicativo. O envio usa `web-push`, VAPID, inscrições protegidas por RLS e claims por dispositivo para evitar duplicatas. Para ativar em produção, configure as variáveis da Vercel, execute `supabase/push-subscriptions.sql` depois de `notifications.sql` e configure o webhook INSERT. Os passos completos estão em [docs/web-push.md](docs/web-push.md).

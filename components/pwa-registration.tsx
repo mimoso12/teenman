@@ -1,6 +1,10 @@
 'use client';
 import {useEffect} from 'react';
+import {useRouter} from 'next/navigation';
+import {safePushUrl} from '../lib/push';
 export default function PwaRegistration(){
+ const router=useRouter();
+ useEffect(()=>{if(!('serviceWorker' in navigator))return;const navigate=(event:MessageEvent)=>{if(event.data?.type==='TEENMAN_PUSH_NAVIGATE')router.push(safePushUrl(event.data.url));};navigator.serviceWorker.addEventListener('message',navigate);return()=>navigator.serviceWorker.removeEventListener('message',navigate);},[router]);
  useEffect(()=>{
   if(process.env.NODE_ENV!=='production'||!('serviceWorker' in navigator)||!window.isSecureContext)return;
   let cancelled=false;
