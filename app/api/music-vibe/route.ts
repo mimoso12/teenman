@@ -11,6 +11,7 @@ export async function POST(request: Request) {
     if (text.length > 8192) return Response.json({ error: 'Dados muito longos.' }, { status: 413, headers });
     const data = JSON.parse(text);
     if (typeof data?.trackName !== 'string' || !data.trackName.trim() || data.trackName.length > 300 || typeof data.artistName !== 'string' || data.artistName.length > 500) return Response.json({ error: 'Informe o nome da faixa e o artista.' }, { status: 400, headers });
-    return Response.json(await service.generate(data.trackName.trim(), data.artistName.trim()), { headers });
+    const result=await service.generate(data.trackName.trim(), data.artistName.trim());
+    return Response.json({...result,fromAi:result.fromAi===true}, { headers });
   } catch { return Response.json({ error: 'JSON inválido.' }, { status: 400, headers }); }
 }

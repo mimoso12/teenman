@@ -12,11 +12,13 @@ import AiStageEffects from './AiStageEffects';
 import GlobalVibePalette from './global-vibe-palette';
 import {useMusicTaste} from './use-music-taste';
 import type {TasteEntry} from '../lib/music-taste';
+import {queueTrack,takeQueuedTrack} from '../lib/music-queue';
 type MusicContextValue = {
   taste:TasteEntry[];recordTaste:(kind:TasteEntry['kind'],term:string,genres?:string[])=>void;
   user:User|null; ready:boolean; ownerProfile:ProfileData|null; track:Track|null; playing:boolean;
   setPlaying:(value:boolean)=>void; selectTrack:(track:Track,pin?:boolean)=>void; offerTrack:(track:Track)=>void;
   playTrack:(track:Track)=>void;playRequest:number;
+  queue:Track[];addToQueue:(track:Track)=>void;playNext:(index?:number)=>void;removeFromQueue:(index:number)=>void;clearQueue:()=>void;
   pinTrack:()=>void; status:'idle'|'saving'|'saved'|'error'; message:string;
   vibe:VibeResult|null; analyzing:boolean; effects:boolean; toggleEffects:()=>void; openSignal:number;
   refreshOwner:()=>Promise<void>;
@@ -31,16 +33,17 @@ export default function MusicProvider({children}:{children:ReactNode}){
   const [track,setTrack]=useState<Track|null>(null),[playing,setPlaying]=useState(false);
   const active=useRef<Track|null>(null),identity=useRef<string|null|undefined>(undefined);
   const [playRequest,setPlayRequest]=useState(0);
+  const [upNext,setUpNext]=useState<Track[]>([]),upNextRef=useRef<Track[]>([]);
   const [effects,setEffects]=useState(true),[openSignal,setOpenSignal]=useState(0),[autoPin,setAutoPin]=useState(false);
   const [status,setStatus]=useState<MusicContextValue['status']>('idle'),[message,setMessage]=useState('');
   const queue=useRef(Promise.resolve()),revision=useRef(0),lastSaved=useRef('');
-  const analysis=useMusicVibe(track,Boolean(track),true);
+  const analysis=useMusicVibe(track,Boolean(track),true,playRequest);
   useEffect(()=>{try{const saved=localStorage.getItem('teenman-auto-effects-v2');if(saved!==null)setEffects(saved==='on');}catch{}},[]);
   useEffect(()=>{
     if(!supabase){setReady(true);return;}
     const {data}=supabase.auth.onAuthStateChange((_event,session)=>{
       const next=session?.user||null;
-      if(identity.current!==undefined&&identity.current!==next?.id&&identity.current!==null){active.current=null;setTrack(null);setPlaying(false);setPlayRequest(0);setAutoPin(false);setOwnerProfile(null);setStatus('idle');}
+      if(identity.current!==undefined&&identity.current!==next?.id&&identity.current!==null){active.current=null;setTrack(null);setPlaying(false);setPlayRequest(0);setAutoPin(false);setOwnerProfile(null);setStatus('idle');upNextRef.current=[];setUpNext([]);}
       identity.current=next?.id||null;setUser(next);setReady(true);
     });
     return()=>data.subscription.unsubscribe();
@@ -88,14 +91,19 @@ export default function MusicProvider({children}:{children:ReactNode}){
     if(user&&pin){lastSaved.current='';persist(next,null);}
   }
   function playTrack(next:Track){taste.record('play',next.artist);selectTrack(next);setPlayRequest(value=>value+1);}
+  function updateQueue(next:Track[]){upNextRef.current=next;setUpNext(next);}
+  function addToQueue(next:Track){const valid=queueTrack(next);if(valid)updateQueue([...upNextRef.current,valid]);}
+  function playNext(index=0){const next=takeQueuedTrack(upNextRef.current,index);if(!next.track)return;updateQueue(next.remaining);playTrack(next.track);}
+  function removeFromQueue(index:number){if(Number.isInteger(index)&&index>=0)updateQueue(upNextRef.current.filter((_,position)=>position!==index));}
+  function clearQueue(){updateQueue([]);}
   function offerTrack(next:Track){if(!active.current){active.current=next;setTrack(next);}}
   function pinTrack(){if(!track)return;setAutoPin(true);if(user&&analysis.vibe)lastSaved.current=JSON.stringify([user.id,track.id,analysis.vibe]);persist(track,analysis.vibe);}
   function toggleEffects(){setEffects(previous=>{const next=!previous;try{localStorage.setItem('teenman-auto-effects-v2',next?'on':'off');}catch{}return next;});}
   const visible=ready&&(Boolean(user)||(pathname!=='/'&&Boolean(track)));
-  return <MusicContext.Provider value={{taste:taste.history,recordTaste:taste.record,user,ready,ownerProfile,track,playing,setPlaying,selectTrack,playTrack,playRequest,offerTrack,pinTrack,status,message,vibe:analysis.vibe,analyzing:analysis.loading,effects,toggleEffects,openSignal,refreshOwner}}>
+  return <MusicContext.Provider value={{taste:taste.history,recordTaste:taste.record,user,ready,ownerProfile,track,playing,setPlaying,selectTrack,playTrack,playRequest,queue:upNext,addToQueue,playNext,removeFromQueue,clearQueue,offerTrack,pinTrack,status,message,vibe:analysis.vibe,analyzing:analysis.loading,effects,toggleEffects,openSignal,refreshOwner}}>
     {children}
     {visible&&<VibeWidget/>}
-    <GlobalVibePalette active={visible&&playing&&effects} vibe={analysis.vibe}/>
-    <AiStageEffects playing={visible&&playing} enabled={effects} vibe={analysis.vibe}/>
+    <GlobalVibePalette active={visible&&Boolean(track)&&effects} vibe={analysis.vibe}/>
+    <AiStageEffects playing={visible&&Boolean(track)} enabled={effects} vibe={analysis.vibe}/>
   </MusicContext.Provider>;
 }

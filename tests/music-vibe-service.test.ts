@@ -74,7 +74,7 @@ test('modelo principal 404 usa Gemini atual automaticamente e não repete o mode
 test('reconhece artistas, gêneros e faixas country sem confundir MPB ou Taylor pop',()=>{
  const cases=[['Hallelujah','Pentatonix','christmas-city'],['Faixa','Mariah Carey','christmas-city'],['Faixa','Michael Bublé','christmas-city'],['Nosso Quadro','Ana Castela','country-ranch'],['Saudade da Minha Vida','Gusttavo Lima','country-ranch'],['Amor','Jorge & Mateus','country-ranch'],['Infiel','Marília Mendonça','country-ranch'],['Evidências','Chitãozinho & Xororó','country-ranch'],['Faixa','Henrique & Juliano','country-ranch'],['Faixa','Luan Santana','country-ranch'],['Last Night','Morgan Wallen','country-ranch'],['Our Song','Taylor Swift','country-ranch'],['Shake It Off','Taylor Swift','love-aurora'],['Máquina do Tempo','Matuê','urban-street'],['Faixa','MC Hariel','urban-street'],['AmarElo','Emicida','urban-street'],['Enter Sandman','Metallica','epic-fire'],['Oceano','Djavan','tropical-sunset'],['Taj Mahal','Jorge Ben Jor','tropical-sunset']];
  for(const [track,artist,theme] of cases){const result=localMusicVibe(track,artist);assert.equal(result.sceneTheme,theme,`${track} / ${artist}`);assert.ok(validateMusicVibe(result));}
- assert.ok(vibeCacheKey('A','B').startsWith('music_vibe_v10_'));
+ assert.ok(vibeCacheKey('A','B').startsWith('music_vibe_v11_'));
  assert.notEqual(localMusicVibe('Faixa desconhecida','Banda nova').vibeName,localMusicVibe('Outra faixa','Outra banda').vibeName);
  for(const vibeName of ['Na sua frequência','Na Sua Frequencia','Sua vibe','Vibe musical'])assert.equal(validateMusicVibe({...good,vibeName}),null);
 });
